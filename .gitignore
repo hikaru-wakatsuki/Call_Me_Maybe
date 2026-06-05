@@ -1,0 +1,16 @@
+llm_sdk.zip
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.mypy_cache/
+
+# uv / venv
+.venv/
+
+# output (課題の指示通り)
+data/output/
+
+# OS
+.DS_Store
