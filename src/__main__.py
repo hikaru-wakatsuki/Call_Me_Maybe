@@ -1,4 +1,8 @@
 import argparse
+from llm_sdk import Small_LLM_Model
+from .loader import load_functions, load_prompts
+from .generator import build_functions_tokens, generate
+from .utils import write_output
 
 
 def main() -> None:
@@ -10,6 +14,18 @@ def main() -> None:
         '--input', default='data/input/function_calling_tests.json')
     parse.add_argument('--output', default='data/output/function_calls.json')
     args = parse.parse_args()
+
+    model = Small_LLM_Model()
+    functions = load_functions(args.functions_definition)
+    prompts = load_prompts(args.input)
+    functions_tokens = build_functions_tokens(model, functions)
+
+    result = []
+    for prompt in prompts:
+        result = generate(model, prompt, functions, functions_tokens)
+        result.append(result)
+
+    write_output(args.output, result)
 
 
 if __name__ == '__main__':
