@@ -20,12 +20,12 @@ def main() -> None:
     prompts = load_prompts(args.input)
     functions_tokens = build_functions_tokens(model, functions)
 
-    result = []
+    results = []
     for prompt in prompts:
         result = generate(model, prompt, functions, functions_tokens)
-        result.append(result)
+        results.append(result)
 
-    write_output(args.output, result)
+    write_output(args.output, results)
 
 
 if __name__ == '__main__':
