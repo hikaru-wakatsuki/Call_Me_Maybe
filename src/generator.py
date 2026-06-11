@@ -13,7 +13,7 @@ def build_functions_tokens(
     function_tokens = {}
     for function in functions:
         ids = model.encode(function.name).tolist()[0]
-        function_tokens[function] = ids
+        function_tokens[function.name] = ids
     return function_tokens
 
 
@@ -58,11 +58,11 @@ def build_argument_prompt(request: Prompt, function: FunctionDef) -> str:
 
 def generate_value(model: Small_LLM_Model, input_ids: List[int]) -> List[int]:
     generated = []
-    end_ids = (model.encode(",").tolist()[0] + model.encode("}").tolist()[0])
     for _ in range(MAX_STEPS):
         logits = model.get_logits_from_input_ids(input_ids + generated)
         next_id = logits.index(max(logits))
-        if next_id in end_ids:
+        token = model.decode([next_id])
+        if ',' in token or '}' in token:
             break
         generated.append(next_id)
     return generated
@@ -81,7 +81,9 @@ def generate_argument(model: Small_LLM_Model, prompt: str,
         if i < len(params) - 1:
             generated.extend(model.encode(", ").tolist()[0])
     generated.extend(model.encode("}").tolist()[0])
+    print(f"generated: {generated}")
     result = model.decode(generated)
+    print(f"result: {repr(result)}")
     return json.loads(result)
 
 
