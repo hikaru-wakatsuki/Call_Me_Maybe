@@ -19,3 +19,6 @@ llm-sdk = {path = "llm_sdk"}
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.mypy]
+exclude = ["llm_sdk"]
