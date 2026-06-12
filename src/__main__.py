@@ -1,5 +1,5 @@
 import argparse
-from llm_sdk import Small_LLM_Model
+from llm_sdk import Small_LLM_Model  # type: ignore
 from .loader import load_functions, load_prompts
 from .generator import build_functions_tokens, generate
 from .utils import write_output

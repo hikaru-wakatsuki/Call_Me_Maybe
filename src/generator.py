@@ -1,4 +1,4 @@
-from llm_sdk import Small_LLM_Model
+from llm_sdk import Small_LLM_Model  # type: ignore
 from typing import List, Dict, Any
 from .schema import FunctionDef, Prompt, TypeDef, FunctionCall
 import json
