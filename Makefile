@@ -10,7 +10,7 @@ debug:
 	uv run python -m pdb -m src
 
 clean:
-	rm -rf __pycache__ src/__pycache__ .mype_cache
+	rm -rf __pycache__ src/__pycache__ .mypy_cache
 
 lint:
 	uv run flake8 .
@@ -20,4 +20,4 @@ lint-strict:
 	uv run flake8 .
 	uv run mypy . --strict
 
-.PHONY install run debug clean lint lint-strict
+.PHONY: install run debug clean lint lint-strict
