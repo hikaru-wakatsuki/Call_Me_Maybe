@@ -5,6 +5,14 @@ from pydantic import ValidationError
 
 
 def load_prompts(file_path: str) -> List[Prompt]:
+    """Load prompts from a JSON file.
+
+    Args:
+        file_path: Path to the prompts JSON file.
+
+    Returns:
+        List of Prompt objects.
+    """
     data = json_file_read(file_path)
     try:
         return [Prompt(**item) for item in data]
@@ -13,6 +21,14 @@ def load_prompts(file_path: str) -> List[Prompt]:
 
 
 def load_functions(file_path: str) -> List[FunctionDef]:
+    """Load function definitions from a JSON file.
+
+    Args:
+        file_path: Path to the function definitions JSON file.
+
+    Returns:
+        List of FunctionDef objects.
+    """
     data = json_file_read(file_path)
     try:
         functions = [FunctionDef(**item) for item in data]

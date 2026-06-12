@@ -6,6 +6,11 @@ from .utils import write_output
 
 
 def main() -> None:
+    """Entry point for the function calling tool.
+
+    Parses command line arguments, loads input files, runs the generation
+    pipeline for each prompt, and writes results to the output file.
+    """
     parse = argparse.ArgumentParser()
     parse.add_argument(
         '--functions_definition',
