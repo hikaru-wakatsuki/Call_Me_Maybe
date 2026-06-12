@@ -1,6 +1,6 @@
 from llm_sdk import Small_LLM_Model
 from typing import List, Dict
-from .schema import FunctionDef, Prompt, FunctionCall
+from .schema import FunctionDef, Prompt, TypeDef, FunctionCall
 import json
 
 
@@ -56,14 +56,27 @@ def build_argument_prompt(request: Prompt, function: FunctionDef) -> str:
     return prompt
 
 
-def generate_value(model: Small_LLM_Model, input_ids: List[int]) -> List[int]:
+def generate_value(model: Small_LLM_Model,
+                   typedef: TypeDef, input_ids: List[int]) -> List[int]:
     generated = []
+    is_string = typedef.type in ("string", "str")
+    string_opening = False
     for _ in range(MAX_STEPS):
         logits = model.get_logits_from_input_ids(input_ids + generated)
         next_id = logits.index(max(logits))
         token = model.decode([next_id])
+
+        if is_string:
+            generated.append(next_id)
+            if '"' in token:
+                if not string_opening:
+                    string_opening = True
+                else:
+                    break
+
         if ',' in token or '}' in token:
             break
+
         generated.append(next_id)
     return generated
 
@@ -74,9 +87,9 @@ def generate_argument(model: Small_LLM_Model, prompt: str,
     generated = []
     generated.extend(model.encode("{").tolist()[0])
     params = list(function.parameters.items())
-    for i, (key, _) in enumerate(params):
+    for i, (key, typedef) in enumerate(params):
         generated.extend(model.encode(f'"{key}": ').tolist()[0])
-        value_ids = generate_value(model, input_ids + generated)
+        value_ids = generate_value(model, typedef, input_ids + generated)
         generated.extend(value_ids)
         if i < len(params) - 1:
             generated.extend(model.encode(", ").tolist()[0])
