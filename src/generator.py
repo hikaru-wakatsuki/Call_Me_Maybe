@@ -1,5 +1,5 @@
 from llm_sdk import Small_LLM_Model
-from typing import List, Dict
+from typing import List, Dict, Any
 from .schema import FunctionDef, Prompt, TypeDef, FunctionCall
 import json
 
@@ -62,7 +62,7 @@ def select_function(model: Small_LLM_Model, prompt: str,
         The selected function definition.
     """
     input_ids = model.encode(prompt).tolist()[0]
-    generated = []
+    generated: List[int] = []
     while True:
         logits = model.get_logits_from_input_ids(input_ids + generated)
         allowed = []
@@ -130,7 +130,7 @@ def generate_value(model: Small_LLM_Model,
 
 
 def generate_argument(model: Small_LLM_Model, prompt: str,
-                      function: FunctionDef) -> Dict[str, float | str | bool]:
+                      function: FunctionDef) -> Any:
     """Generate arguments for a function call using constrained decoding.
 
     Args:

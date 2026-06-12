@@ -15,14 +15,14 @@ def handle_error(message: str) -> NoReturn:
     sys.exit(1)
 
 
-def json_file_read(file_path: str) -> List[Any]:
+def json_file_read(file_path: str) -> Any:
     """Read and parse a JSON file.
 
     Args:
         file_path: Path to the JSON file.
 
     Returns:
-        Parsed JSON content as a list.
+        Parsed JSON content .
     """
     try:
         with open(file_path, 'r') as f:
