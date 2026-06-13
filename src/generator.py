@@ -147,8 +147,8 @@ def _generate_parameters(model: Small_LLM_Model, input_ids: List[int],
     return generated
 
 
-def generate(model: Small_LLM_Model, request: Prompt,
-             function: FunctionDef) -> FunctionCall:
+def generate_function_call(model: Small_LLM_Model, request: Prompt,
+                           function: FunctionDef) -> FunctionCall:
     """Generate a function call from a natural language prompt.
 
     Args:
