@@ -1,6 +1,7 @@
 import argparse
 from .loader import load_functions, load_prompts, load_model
-from .generator import build_functions_tokens, generate
+from .selector import build_functions_tokens
+from .generator import generate
 from .utils import write_output
 
 

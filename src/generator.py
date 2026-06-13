@@ -1,81 +1,14 @@
 from llm_sdk import Small_LLM_Model  # type: ignore
-from typing import List, Dict, Any
+from typing import List, Dict
 from .schema import FunctionDef, Prompt, TypeDef, FunctionCall
 import json
+from .selector import build_selection_prompt, select_function
 
 
 MAX_STEPS = 100
 
 
-def build_functions_tokens(
-        model: Small_LLM_Model,
-        functions: List[FunctionDef]) -> Dict[str, List[int]]:
-    """Build a mapping of function names to their token IDs.
-
-    Args:
-        model: The LLM model instance.
-        functions: List of function definitions.
-
-    Returns:
-        Dictionary mapping function names to lists of token IDs.
-    """
-    function_tokens = {}
-    for function in functions:
-        ids = model.encode(function.name).tolist()[0]
-        function_tokens[function.name] = ids
-    return function_tokens
-
-
-def build_selection_prompt(
-        request: Prompt, functions: List[FunctionDef]) -> str:
-    """Build a prompt for function selection.
-
-    Args:
-        request: The user's prompt.
-        functions: List of available function definitions.
-
-    Returns:
-        A prompt string for function selection.
-    """
-    prompt = "Available functions:"
-    for function in functions:
-        params = ", ".join(
-            f"{k}: {v.type}" for k, v in function.parameters.items())
-        prompt += f"\n- {function.name}({params}): {function.description}"
-    prompt += f"\nUser request: {request.prompt}"
-    prompt += "\nFunction name:"
-    return prompt
-
-
-def select_function(model: Small_LLM_Model, prompt: str,
-                    function_tokens: Dict[str, List[int]],
-                    functions: List[FunctionDef]) -> FunctionDef:
-    """Select the appropriate function using constrained decoding.
-
-    Args:
-        model: The LLM model instance.
-        prompt: The prompt string for function selection.
-        functions_tokens: Dictionary mapping function names to token IDs.
-        functions: List of available function definitions.
-
-    Returns:
-        The selected function definition.
-    """
-    input_ids = model.encode(prompt).tolist()[0]
-    generated: List[int] = []
-    while True:
-        logits = model.get_logits_from_input_ids(input_ids + generated)
-        allowed = []
-        for tokens in function_tokens.values():
-            allowed.append(tokens[len(generated)])
-        next_id = max(allowed, key=lambda i: logits[i])
-        generated.append(next_id)
-        for name, tokens in function_tokens.items():
-            if tokens == generated:
-                return next(f for f in functions if f.name == name)
-
-
-def build_argument_prompt(request: Prompt, function: FunctionDef) -> str:
+def build_parameters_prompt(request: Prompt, function: FunctionDef) -> str:
     """Build a prompt for argument generation.
 
     Args:
@@ -94,8 +27,51 @@ def build_argument_prompt(request: Prompt, function: FunctionDef) -> str:
     return prompt
 
 
-def generate_value(model: Small_LLM_Model,
-                   typedef: TypeDef, input_ids: List[int]) -> List[int]:
+def generate_tokens(model: Small_LLM_Model, input_ids: List[int]) -> List[int]:
+    generated: List[int] = []
+    for _ in range(MAX_STEPS):
+        logits = model.get_logits_from_input_ids(input_ids + generated)
+        next_id = logits.index(max(logits))
+        token = model.decode([next_id])
+        if ',' in token or '}' in token or ']' in token:
+            break
+        generated.append(next_id)
+    return generated
+
+
+def generate_string(model: Small_LLM_Model, input_ids: List[int]) -> List[int]:
+    generated: List[int] = []
+    generated.extend(model.encode('"').tolist()[0])
+    for _ in range(MAX_STEPS):
+        logits = model.get_logits_from_input_ids(input_ids + generated)
+        next_id = logits.index(max(logits))
+        token = model.decode([next_id])
+        if '"' in token:
+            break
+        generated.append(next_id)
+    generated.extend(model.encode('"').tolist()[0])
+    return generated
+
+
+def generate_array(model: Small_LLM_Model, input_ids: List[int],
+                   typedef: TypeDef) -> List[int]:
+    generated: List[int] = []
+    generated.extend(model.encode('[').tolist()[0])
+    for _ in range(MAX_STEPS):
+        value_ids = generate_value(model, input_ids + generated, typedef)
+        generated.extend(value_ids)
+        logits = model.get_logits_from_input_ids(input_ids + generated)
+        next_id = logits.index(max(logits))
+        token = model.decode([next_id])
+        if ']' in token:
+            break
+        generated.extend(model.encode(',').tolist()[0])
+    generated.extend(model.encode(']').tolist()[0])
+    return generated
+
+
+def generate_value(model: Small_LLM_Model, input_ids: List[int],
+                   typedef: TypeDef) -> List[int]:
     """Generate value tokens for a function argument using constrained
        decoding.
 
@@ -107,59 +83,44 @@ def generate_value(model: Small_LLM_Model,
     Returns:
         List of generated token IDs for the value.
     """
-    generated = []
-    is_string = typedef.type in ("string", "str")
-    if is_string:
-        generated.extend(model.encode('"').tolist()[0])
-    for _ in range(MAX_STEPS):
-        logits = model.get_logits_from_input_ids(input_ids + generated)
-        next_id = logits.index(max(logits))
-        token = model.decode([next_id])
-
-        if is_string:
-            if '"' in token:
-                break
-        else:
-            if ',' in token or '}' in token:
-                break
-
-        generated.append(next_id)
-    if is_string:
-        generated.extend(model.encode('"').tolist()[0])
-    return generated
+    if typedef.properties is not None:
+        return generate_parameters(model, input_ids, typedef.properties)
+    elif typedef.items is not None:
+        return generate_array(model, input_ids, typedef.items)
+    elif typedef.type in ("string", "str"):
+        return generate_string(model, input_ids)
+    else:
+        return generate_tokens(model, input_ids)
 
 
-def generate_argument(model: Small_LLM_Model, prompt: str,
-                      function: FunctionDef) -> Any:
+def generate_parameters(model: Small_LLM_Model, input_ids: List[int],
+                        parameters:  Dict[str, TypeDef]) -> List[int]:
     """Generate arguments for a function call using constrained decoding.
 
     Args:
         model: The LLM model instance.
-        prompt: The prompt string for argument generation.
-        function: The selected function definition.
+        input_ids: The input token IDs including the prompt.
+        parameters: Dictionary mapping parameter names to type definitions.
 
     Returns:
-        Dictionary mapping argument names to their values.
+        List of generated token IDs for the parameters.
     """
-    input_ids = model.encode(prompt).tolist()[0]
-    generated = []
+    generated: List[int] = []
     generated.extend(model.encode("{").tolist()[0])
-    params = list(function.parameters.items())
+    params = list(parameters.items())
     for i, (key, typedef) in enumerate(params):
         generated.extend(model.encode(f'"{key}": ').tolist()[0])
-        value_ids = generate_value(model, typedef, input_ids + generated)
+        value_ids = generate_value(model, input_ids + generated, typedef)
         generated.extend(value_ids)
         if i < len(params) - 1:
             generated.extend(model.encode(", ").tolist()[0])
     generated.extend(model.encode("}").tolist()[0])
-    result = model.decode(generated)
-    return json.loads(result)
+    return generated
 
 
 def generate(
         model: Small_LLM_Model, request: Prompt, functions: List[FunctionDef],
         functions_tokens: Dict[str, List[int]]) -> FunctionCall:
-    selection_prompt = build_selection_prompt(request, functions)
     """Generate a function call from a natural language prompt.
 
     Args:
@@ -171,9 +132,14 @@ def generate(
     Returns:
         A FunctionCall object containing the function name and arguments.
     """
+    selection_prompt = build_selection_prompt(request, functions)
+    selection_ids = model.encode(selection_prompt).tolist()[0]
     function = select_function(
-        model, selection_prompt, functions_tokens, functions)
-    argument_prompt = build_argument_prompt(request, function)
-    parameters = generate_argument(model, argument_prompt, function)
+        model, selection_ids, functions_tokens, functions)
+    argument_prompt = build_parameters_prompt(request, function)
+    argument_ids = model.encode(argument_prompt).tolist()[0]
+    parameters_ids = generate_parameters(
+        model, argument_ids, function.parameters)
+    parameters = json.loads(model.decode(parameters_ids))
     return FunctionCall(
         prompt=request.prompt, name=function.name, parameters=parameters)

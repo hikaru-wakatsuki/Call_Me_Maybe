@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 
 class Prompt(BaseModel):
@@ -16,10 +16,14 @@ class TypeDef(BaseModel):
     """Type definition for a function parameter.
 
     Attributes:
-        type: The type name (e.g., number, string, boolean).
+        type: The type name (e.g., number, string, object, array, etc.).
+        properties: Nested type definitions for object types.
+        items: Element type definition for array types.
     """
     model_config = ConfigDict(extra='forbid')
     type: str = Field(min_length=1)
+    properties: Optional[Dict[str, "TypeDef"]] = None
+    items: Optional["TypeDef"] = None
 
 
 class FunctionDef(BaseModel):

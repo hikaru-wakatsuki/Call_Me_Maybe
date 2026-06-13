@@ -1,0 +1,73 @@
+from llm_sdk import Small_LLM_Model  # type: ignore
+from typing import List, Dict
+from .schema import FunctionDef, Prompt
+
+
+MAX_STEPS = 100
+
+
+def build_functions_tokens(
+        model: Small_LLM_Model,
+        functions: List[FunctionDef]) -> Dict[str, List[int]]:
+    """Build a mapping of function names to their token IDs.
+
+    Args:
+        model: The LLM model instance.
+        functions: List of function definitions.
+
+    Returns:
+        Dictionary mapping function names to lists of token IDs.
+    """
+    function_tokens = {}
+    for function in functions:
+        ids = model.encode(function.name).tolist()[0]
+        function_tokens[function.name] = ids
+    return function_tokens
+
+
+def build_selection_prompt(
+        request: Prompt, functions: List[FunctionDef]) -> str:
+    """Build a prompt for function selection.
+
+    Args:
+        request: The user's prompt.
+        functions: List of available function definitions.
+
+    Returns:
+        A prompt string for function selection.
+    """
+    prompt = "Available functions:"
+    for function in functions:
+        params = ", ".join(
+            f"{k}: {v.type}" for k, v in function.parameters.items())
+        prompt += f"\n- {function.name}({params}): {function.description}"
+    prompt += f"\nUser request: {request.prompt}"
+    prompt += "\nFunction name:"
+    return prompt
+
+
+def select_function(model: Small_LLM_Model, input_ids: List[int],
+                    function_tokens: Dict[str, List[int]],
+                    functions: List[FunctionDef]) -> FunctionDef:
+    """Select the appropriate function using constrained decoding.
+
+    Args:
+        model: The LLM model instance.
+        prompt: The prompt string for function selection.
+        functions_tokens: Dictionary mapping function names to token IDs.
+        functions: List of available function definitions.
+
+    Returns:
+        The selected function definition.
+    """
+    generated: List[int] = []
+    while True:
+        logits = model.get_logits_from_input_ids(input_ids + generated)
+        allowed = []
+        for tokens in function_tokens.values():
+            allowed.append(tokens[len(generated)])
+        next_id = max(allowed, key=lambda i: logits[i])
+        generated.append(next_id)
+        for name, tokens in function_tokens.items():
+            if tokens == generated:
+                return next(f for f in functions if f.name == name)
