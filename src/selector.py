@@ -6,7 +6,7 @@ from .schema import FunctionDef, Prompt
 MAX_STEPS = 100
 
 
-def build_functions_tokens(
+def _build_functions_tokens(
         model: Small_LLM_Model,
         functions: List[FunctionDef]) -> Dict[str, List[int]]:
     """Build a mapping of function names to their token IDs.
@@ -25,7 +25,7 @@ def build_functions_tokens(
     return function_tokens
 
 
-def build_selection_prompt(
+def _build_selection_prompt(
         request: Prompt, functions: List[FunctionDef]) -> str:
     """Build a prompt for function selection.
 
@@ -46,19 +46,17 @@ def build_selection_prompt(
     return prompt
 
 
-def select_function(model: Small_LLM_Model, input_ids: List[int],
-                    function_tokens: Dict[str, List[int]],
-                    functions: List[FunctionDef]) -> FunctionDef:
+def _generate_function_ids(model: Small_LLM_Model, input_ids: List[int],
+                           function_tokens: Dict[str, List[int]]) -> List[int]:
     """Select the appropriate function using constrained decoding.
 
     Args:
         model: The LLM model instance.
-        prompt: The prompt string for function selection.
-        functions_tokens: Dictionary mapping function names to token IDs.
-        functions: List of available function definitions.
+        input_ids: The input token IDs including the selection prompt.
+        function_tokens: Dictionary mapping function names to token IDs.
 
     Returns:
-        The selected function definition.
+        List of token IDs representing the selected function name.
     """
     generated: List[int] = []
     while True:
@@ -68,6 +66,27 @@ def select_function(model: Small_LLM_Model, input_ids: List[int],
             allowed.append(tokens[len(generated)])
         next_id = max(allowed, key=lambda i: logits[i])
         generated.append(next_id)
-        for name, tokens in function_tokens.items():
+        for _, tokens in function_tokens.items():
             if tokens == generated:
-                return next(f for f in functions if f.name == name)
+                return generated
+
+
+def select_function(model: Small_LLM_Model, request: Prompt,
+                    functions: List[FunctionDef]) -> FunctionDef:
+    """Select the appropriate function for a given request.
+
+    Args:
+        model: The LLM model instance.
+        request: The user's prompt.
+        functions: List of available function definitions.
+
+    Returns:
+        The selected function definition.
+    """
+    functions_tokens = _build_functions_tokens(model, functions)
+    selection_prompt = _build_selection_prompt(request, functions)
+    selection_ids = model.encode(selection_prompt).tolist()[0]
+    function_ids = _generate_function_ids(
+        model, selection_ids, functions_tokens)
+    function_name = model.decode(function_ids)
+    return next(f for f in functions if f.name == function_name)
