@@ -27,7 +27,17 @@ def build_parameters_prompt(request: Prompt, function: FunctionDef) -> str:
     return prompt
 
 
-def generate_tokens(model: Small_LLM_Model, input_ids: List[int]) -> List[int]:
+def generate_primitive(
+        model: Small_LLM_Model, input_ids: List[int]) -> List[int]:
+    """Generate token IDs for a primitive value (number, boolean, etc.).
+
+    Args:
+        model: The LLM model instance.
+        input_ids: The input token IDs including the prompt.
+
+    Returns:
+        List of generated token IDs for the primitive value.
+    """
     generated: List[int] = []
     for _ in range(MAX_STEPS):
         logits = model.get_logits_from_input_ids(input_ids + generated)
@@ -40,6 +50,15 @@ def generate_tokens(model: Small_LLM_Model, input_ids: List[int]) -> List[int]:
 
 
 def generate_string(model: Small_LLM_Model, input_ids: List[int]) -> List[int]:
+    """Generate token IDs for a string value, wrapped in double quotes.
+
+    Args:
+        model: The LLM model instance.
+        input_ids: The input token IDs including the prompt.
+
+    Returns:
+        List of generated token IDs for the string value.
+    """
     generated: List[int] = []
     generated.extend(model.encode('"').tolist()[0])
     for _ in range(MAX_STEPS):
@@ -55,6 +74,16 @@ def generate_string(model: Small_LLM_Model, input_ids: List[int]) -> List[int]:
 
 def generate_array(model: Small_LLM_Model, input_ids: List[int],
                    typedef: TypeDef) -> List[int]:
+    """Generate token IDs for an array value.
+
+    Args:
+        model: The LLM model instance.
+        input_ids: The input token IDs including the prompt.
+        typedef: The type definition of the array elements.
+
+    Returns:
+        List of generated token IDs for the array value.
+    """
     generated: List[int] = []
     generated.extend(model.encode('[').tolist()[0])
     for _ in range(MAX_STEPS):
@@ -77,8 +106,8 @@ def generate_value(model: Small_LLM_Model, input_ids: List[int],
 
     Args:
         model: The LLM model instance.
-        typedef: The type definition of the argument.
         input_ids: The input token IDs including the prompt.
+        typedef: The type definition of the argument.
 
     Returns:
         List of generated token IDs for the value.
@@ -90,7 +119,7 @@ def generate_value(model: Small_LLM_Model, input_ids: List[int],
     elif typedef.type in ("string", "str"):
         return generate_string(model, input_ids)
     else:
-        return generate_tokens(model, input_ids)
+        return generate_primitive(model, input_ids)
 
 
 def generate_parameters(model: Small_LLM_Model, input_ids: List[int],
