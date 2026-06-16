@@ -1,0 +1,8 @@
+[
+    {"prompt": "What is the sum of 2 and 3?"},
+    {"prompt": "Greet John"},
+    {"prompt": "Reverse the string 'hello'"},
+    {"prompt": "Set is_active to True"},
+    {"prompt": "Create a user with name Alice and age 30"},
+    {"prompt": "Tag the item with python, ai and llm"}
+]

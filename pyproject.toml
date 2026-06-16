@@ -7,6 +7,7 @@ dependencies = [
     "pydantic",
     "flake8",
     "mypy",
+	"pytest",
 	"llm-sdk",
 ]
 

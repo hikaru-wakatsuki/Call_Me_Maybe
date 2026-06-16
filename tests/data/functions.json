@@ -1,0 +1,60 @@
+[
+    {
+        "name": "fn_add_numbers",
+        "description": "Add two numbers together and return their sum.",
+        "parameters": {
+            "a": {"type": "number"},
+            "b": {"type": "number"}
+        },
+        "returns": {"type": "number"}
+    },
+    {
+        "name": "fn_greet",
+        "description": "Generate a greeting message for a person by name.",
+        "parameters": {
+            "name": {"type": "string"}
+        },
+        "returns": {"type": "string"}
+    },
+    {
+        "name": "fn_reverse_string",
+        "description": "Reverse a string and return the reversed result.",
+        "parameters": {
+            "s": {"type": "string"}
+        },
+        "returns": {"type": "string"}
+    },
+    {
+        "name": "fn_set_active",
+        "description": "Set the active status of a user.",
+        "parameters": {
+            "is_active": {"type": "boolean"}
+        },
+        "returns": {"type": "boolean"}
+    },
+    {
+        "name": "fn_create_user",
+        "description": "Create a user with a name and age.",
+        "parameters": {
+            "user": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "age": {"type": "number"}
+                }
+            }
+        },
+        "returns": {"type": "string"}
+    },
+    {
+        "name": "fn_tag_item",
+        "description": "Tag an item with a list of tags.",
+        "parameters": {
+            "tags": {
+                "type": "array",
+                "items": {"type": "string"}
+            }
+        },
+        "returns": {"type": "string"}
+    }
+]
