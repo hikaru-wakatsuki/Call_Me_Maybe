@@ -35,7 +35,7 @@ def functions():
 
 
 class TestNormalCases:
-    def test_add_numbers(self, model, functions):
+    def test_add_numbers(self, model, functions) -> None:
         print()
         print("=== test_add_numbers ===")
         prompt = Prompt(prompt="What is the sum of 2 and 3?")
@@ -48,7 +48,7 @@ class TestNormalCases:
         assert result.parameters["a"] == 2
         assert result.parameters["b"] == 3
 
-    def test_greet(self, model, functions):
+    def test_greet(self, model, functions) -> None:
         print()
         print("=== test_greet ===")
         prompt = Prompt(prompt="Greet John")
@@ -60,7 +60,7 @@ class TestNormalCases:
         assert result.name == "fn_greet"
         assert result.parameters["name"] == "John"
 
-    def test_reverse_string(self, model, functions):
+    def test_reverse_string(self, model, functions) -> None:
         print()
         print("=== test_reverse_string ===")
         prompt = Prompt(prompt="Reverse the string 'hello'")
@@ -72,7 +72,7 @@ class TestNormalCases:
         assert result.name == "fn_reverse_string"
         assert result.parameters["s"] == "hello"
 
-    def test_set_active(self, model, functions):
+    def test_set_active(self, model, functions) -> None:
         print()
         print("=== test_set_active ===")
         prompt = Prompt(prompt="Set is_active to true")
@@ -84,7 +84,7 @@ class TestNormalCases:
         assert result.name == "fn_set_active"
         assert result.parameters["is_active"]
 
-    def test_create_user(self, model, functions):
+    def test_create_user(self, model, functions) -> None:
         print()
         print("=== test_create_user ===")
         prompt = Prompt(prompt="Create a user with name Alice and age 30")
@@ -98,7 +98,7 @@ class TestNormalCases:
         assert result.parameters["user"]["name"] == "Alice"
         assert result.parameters["user"]["age"] == 30
 
-    def test_tag_item(self, model, functions):
+    def test_tag_item(self, model, functions) -> None:
         print()
         print("=== test_tag_item ===")
         prompt = Prompt(prompt="Tag the item with python, ai and llm")
@@ -114,7 +114,7 @@ class TestNormalCases:
 
 
 class TestErrorCases:
-    def test_functions_file_not_found(self):
+    def test_functions_file_not_found(self) -> None:
         print()
         print("=== test_functions_file_not_found ===")
         print("prompt  : load_functions('nonexistent.json')")
@@ -122,7 +122,7 @@ class TestErrorCases:
         actual = capture_error(load_functions, "nonexistent.json")
         print(f"actual  : {actual}")
 
-    def test_functions_invalid_json(self):
+    def test_functions_invalid_json(self) -> None:
         print()
         print("=== test_functions_invalid_json ===")
         print(f"prompt  : load_functions('{FUNCTIONS_INVALID}')")
@@ -130,7 +130,7 @@ class TestErrorCases:
         actual = capture_error(load_functions, FUNCTIONS_INVALID)
         print(f"actual  : {actual}")
 
-    def test_functions_bad_schema(self):
+    def test_functions_bad_schema(self) -> None:
         print()
         print("=== test_functions_bad_schema ===")
         print(f"prompt  : load_functions('{FUNCTIONS_BAD_SCHEMA}')")
@@ -138,7 +138,7 @@ class TestErrorCases:
         actual = capture_error(load_functions, FUNCTIONS_BAD_SCHEMA)
         print(f"actual  : {actual}")
 
-    def test_prompts_file_not_found(self):
+    def test_prompts_file_not_found(self) -> None:
         print()
         print("=== test_prompts_file_not_found ===")
         print("prompt  : load_prompts('nonexistent.json')")
@@ -146,7 +146,7 @@ class TestErrorCases:
         actual = capture_error(load_prompts, "nonexistent.json")
         print(f"actual  : {actual}")
 
-    def test_prompts_invalid_json(self):
+    def test_prompts_invalid_json(self) -> None:
         print()
         print("=== test_prompts_invalid_json ===")
         print(f"prompt  : load_prompts('{FUNCTIONS_INVALID}')")
@@ -154,7 +154,7 @@ class TestErrorCases:
         actual = capture_error(load_prompts, FUNCTIONS_INVALID)
         print(f"actual  : {actual}")
 
-    def test_prompts_empty(self):
+    def test_prompts_empty(self) -> None:
         print()
         print("=== test_prompts_empty ===")
         prompts = load_prompts(PROMPTS_EMPTY)
@@ -163,7 +163,7 @@ class TestErrorCases:
         print(f"actual  : {prompts}")
         assert prompts == []
 
-    def test_model_not_found(self):
+    def test_model_not_found(self) -> None:
         print()
         print("=== test_model_not_found ===")
         print("prompt  : load_model('nonexistent/model-xyz')")
