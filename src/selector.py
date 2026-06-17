@@ -1,6 +1,7 @@
 from llm_sdk import Small_LLM_Model  # type: ignore
 from typing import List, Dict
 from .schema import FunctionDef, Prompt
+from .utils import encode_cached
 
 
 MAX_STEPS = 100
@@ -20,7 +21,7 @@ def build_functions_tokens(
     """
     function_tokens = {}
     for function in functions:
-        ids = model.encode(function.name).tolist()[0]
+        ids = encode_cached(model, function.name)
         function_tokens[function.name] = ids
     return function_tokens
 
@@ -87,7 +88,7 @@ def select_function(model: Small_LLM_Model, request: Prompt,
         The selected function definition.
     """
     selection_prompt = _build_selection_prompt(request, functions)
-    selection_ids = model.encode(selection_prompt).tolist()[0]
+    selection_ids = encode_cached(model, selection_prompt)
     function_ids = _generate_function_ids(
         model, selection_ids, functions_tokens)
     function_name = model.decode(function_ids)

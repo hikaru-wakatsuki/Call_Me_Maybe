@@ -1,7 +1,8 @@
+import json
 from llm_sdk import Small_LLM_Model  # type: ignore
 from typing import List, Dict
 from .schema import FunctionDef, Prompt, TypeDef, FunctionCall
-import json
+from .utils import encode_cached
 
 
 MAX_STEPS = 100
@@ -60,7 +61,7 @@ def _generate_string_ids(
         List of generated token IDs for the string value.
     """
     generated: List[int] = []
-    generated.extend(model.encode('"').tolist()[0])
+    generated.extend(encode_cached(model, '"'))
     for _ in range(MAX_STEPS):
         logits = model.get_logits_from_input_ids(input_ids + generated)
         next_id = logits.index(max(logits))
@@ -68,7 +69,7 @@ def _generate_string_ids(
         if '"' in token:
             break
         generated.append(next_id)
-    generated.extend(model.encode('"').tolist()[0])
+    generated.extend(encode_cached(model, '"'))
     return generated
 
 
@@ -85,7 +86,7 @@ def _generate_array_ids(model: Small_LLM_Model, input_ids: List[int],
         List of generated token IDs for the array value.
     """
     generated: List[int] = []
-    generated.extend(model.encode('[').tolist()[0])
+    generated.extend(encode_cached(model, '['))
     for _ in range(MAX_STEPS):
         value_ids = _generate_value_ids(model, input_ids + generated, typedef)
         generated.extend(value_ids)
@@ -94,8 +95,8 @@ def _generate_array_ids(model: Small_LLM_Model, input_ids: List[int],
         token = model.decode([next_id])
         if ']' in token:
             break
-        generated.extend(model.encode(',').tolist()[0])
-    generated.extend(model.encode(']').tolist()[0])
+        generated.extend(encode_cached(model, ','))
+    generated.extend(encode_cached(model, ']'))
     return generated
 
 
@@ -135,15 +136,15 @@ def _generate_parameters_ids(model: Small_LLM_Model, input_ids: List[int],
         List of generated token IDs for the parameters.
     """
     generated: List[int] = []
-    generated.extend(model.encode("{").tolist()[0])
+    generated.extend(encode_cached(model, '{'))
     params = list(parameters.items())
     for i, (key, typedef) in enumerate(params):
-        generated.extend(model.encode(f'"{key}": ').tolist()[0])
+        generated.extend(encode_cached(model, f'"{key}": '))
         value_ids = _generate_value_ids(model, input_ids + generated, typedef)
         generated.extend(value_ids)
         if i < len(params) - 1:
-            generated.extend(model.encode(", ").tolist()[0])
-    generated.extend(model.encode("}").tolist()[0])
+            generated.extend(encode_cached(model, ', '))
+    generated.extend(encode_cached(model, '}'))
     return generated
 
 
