@@ -1,8 +1,8 @@
 import pytest
-from typing import List
+from typing import List, Dict
 from llm_sdk import Small_LLM_Model  # type: ignore
 from src.loader import load_functions, load_prompts, load_model
-from src.selector import select_function
+from src.selector import build_functions_tokens, select_function
 from src.generator import generate_function_call
 from src.schema import Prompt, FunctionDef
 
@@ -23,13 +23,20 @@ def functions() -> List[FunctionDef]:
     return load_functions(FUNCTIONS)
 
 
+@pytest.fixture(scope="session")
+def functions_tokens(model: Small_LLM_Model,
+                     functions: List[FunctionDef]) -> Dict[str, List[int]]:
+    return build_functions_tokens(model, functions)
+
+
 class TestNormalCases:
     def test_add_numbers(self, model: Small_LLM_Model,
-                         functions: List[FunctionDef]) -> None:
+                         functions: List[FunctionDef],
+                         functions_tokens: Dict[str, List[int]]) -> None:
         print()
         print("=== test_add_numbers ===")
         prompt = Prompt(prompt="What is the sum of 2 and 3?")
-        function = select_function(model, prompt, functions)
+        function = select_function(model, prompt, functions, functions_tokens)
         result = generate_function_call(model, prompt, function)
         print(f"prompt  : {prompt.prompt}")
         print("expected: fn_add_numbers({'a': 2, 'b': 3})")
@@ -39,11 +46,12 @@ class TestNormalCases:
         assert result.parameters["b"] == 3
 
     def test_greet(self, model: Small_LLM_Model,
-                   functions: List[FunctionDef]) -> None:
+                   functions: List[FunctionDef],
+                   functions_tokens: Dict[str, List[int]]) -> None:
         print()
         print("=== test_greet ===")
         prompt = Prompt(prompt="Greet John")
-        function = select_function(model, prompt, functions)
+        function = select_function(model, prompt, functions, functions_tokens)
         result = generate_function_call(model, prompt, function)
         print(f"prompt  : {prompt.prompt}")
         print("expected: fn_greet({'name': 'John'})")
@@ -52,11 +60,12 @@ class TestNormalCases:
         assert result.parameters["name"] == "John"
 
     def test_reverse_string(self, model: Small_LLM_Model,
-                            functions: List[FunctionDef]) -> None:
+                            functions: List[FunctionDef],
+                            functions_tokens: Dict[str, List[int]]) -> None:
         print()
         print("=== test_reverse_string ===")
         prompt = Prompt(prompt="Reverse the string 'hello'")
-        function = select_function(model, prompt, functions)
+        function = select_function(model, prompt, functions, functions_tokens)
         result = generate_function_call(model, prompt, function)
         print(f"prompt  : {prompt.prompt}")
         print("expected: fn_reverse_string({'s': 'hello'})")
@@ -65,11 +74,12 @@ class TestNormalCases:
         assert result.parameters["s"] == "hello"
 
     def test_set_active(self, model: Small_LLM_Model,
-                        functions: List[FunctionDef]) -> None:
+                        functions: List[FunctionDef],
+                        functions_tokens: Dict[str, List[int]]) -> None:
         print()
         print("=== test_set_active ===")
         prompt = Prompt(prompt="Set is_active to true")
-        function = select_function(model, prompt, functions)
+        function = select_function(model, prompt, functions, functions_tokens)
         result = generate_function_call(model, prompt, function)
         print(f"prompt  : {prompt.prompt}")
         print("expected: fn_set_active({'is_active': True})")
@@ -78,11 +88,12 @@ class TestNormalCases:
         assert result.parameters["is_active"]
 
     def test_create_user(self, model: Small_LLM_Model,
-                         functions: List[FunctionDef]) -> None:
+                         functions: List[FunctionDef],
+                         functions_tokens: Dict[str, List[int]]) -> None:
         print()
         print("=== test_create_user ===")
         prompt = Prompt(prompt="Create a user with name Alice and age 30")
-        function = select_function(model, prompt, functions)
+        function = select_function(model, prompt, functions, functions_tokens)
         result = generate_function_call(model, prompt, function)
         print(f"prompt  : {prompt.prompt}")
         print("expected: fn_create_user("
@@ -93,11 +104,12 @@ class TestNormalCases:
         assert result.parameters["user"]["age"] == 30
 
     def test_tag_item(self, model: Small_LLM_Model,
-                      functions: List[FunctionDef]) -> None:
+                      functions: List[FunctionDef],
+                      functions_tokens: Dict[str, List[int]]) -> None:
         print()
         print("=== test_tag_item ===")
         prompt = Prompt(prompt="Tag the item with python, ai and llm")
-        function = select_function(model, prompt, functions)
+        function = select_function(model, prompt, functions, functions_tokens)
         result = generate_function_call(model, prompt, function)
         print(f"prompt  : {prompt.prompt}")
         print("expected: fn_tag_item({'tags': ['python', 'ai', 'llm']})")
