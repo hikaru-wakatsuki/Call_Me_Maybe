@@ -6,7 +6,7 @@ from .schema import FunctionDef, Prompt
 MAX_STEPS = 100
 
 
-def _build_functions_tokens(
+def build_functions_tokens(
         model: Small_LLM_Model,
         functions: List[FunctionDef]) -> Dict[str, List[int]]:
     """Build a mapping of function names to their token IDs.
@@ -72,18 +72,20 @@ def _generate_function_ids(model: Small_LLM_Model, input_ids: List[int],
 
 
 def select_function(model: Small_LLM_Model, request: Prompt,
-                    functions: List[FunctionDef]) -> FunctionDef:
+                    functions: List[FunctionDef],
+                    functions_tokens: Dict[str, List[int]]) -> FunctionDef:
     """Select the appropriate function for a given request.
 
     Args:
         model: The LLM model instance.
         request: The user's prompt.
         functions: List of available function definitions.
+        functions_tokens: Mapping of function names to their token IDs,
+            precomputed once and reused across prompts.
 
     Returns:
         The selected function definition.
     """
-    functions_tokens = _build_functions_tokens(model, functions)
     selection_prompt = _build_selection_prompt(request, functions)
     selection_ids = model.encode(selection_prompt).tolist()[0]
     function_ids = _generate_function_ids(

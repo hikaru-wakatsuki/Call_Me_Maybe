@@ -1,8 +1,10 @@
-from typing import NoReturn, List, Any
 import sys
 import json
-from .schema import FunctionCall
 import os
+from typing import NoReturn, List, Any
+from functools import lru_cache
+from llm_sdk import Small_LLM_Model
+from .schema import FunctionCall
 
 
 def handle_error(message: str) -> NoReturn:
@@ -50,3 +52,17 @@ def write_output(file_path: str, results: List[FunctionCall]) -> None:
         handle_error(f"Error: Permission denied: {file_path}")
     except OSError as e:
         handle_error(f"Error: Failed to write output: {e}")
+
+
+@lru_cache(maxsize=None)
+def encode_cached(model: Small_LLM_Model, text: str) -> List[int]:
+    """Encode a fixed/repeating string, caching the result per model.
+
+    Args:
+        model: The LLM model instance whose tokenizer is used.
+        text: The fixed text to encode.
+
+    Returns:
+        The list of token IDs for ``text``.
+    """
+    return model.encode(text).tolist()[0]

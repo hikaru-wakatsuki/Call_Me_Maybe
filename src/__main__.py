@@ -1,6 +1,6 @@
 import argparse
 from .loader import load_functions, load_prompts, load_model
-from .selector import select_function
+from .selector import build_functions_tokens, select_function
 from .generator import generate_function_call
 from .utils import write_output
 
@@ -25,9 +25,10 @@ def main() -> None:
     functions = load_functions(args.functions_definition)
     prompts = load_prompts(args.input)
 
+    functions_tokens = build_functions_tokens(model, functions)
     results = []
     for prompt in prompts:
-        function = select_function(model, prompt, functions)
+        function = select_function(model, prompt, functions, functions_tokens)
         result = generate_function_call(model, prompt, function)
         results.append(result)
 
