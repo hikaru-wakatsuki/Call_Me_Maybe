@@ -1,7 +1,7 @@
 import sys
 import json
 import os
-from typing import NoReturn, List, Any
+from typing import NoReturn, List, Any, cast
 from functools import lru_cache
 from llm_sdk import Small_LLM_Model  # type: ignore
 from .schema import FunctionCall
@@ -65,4 +65,4 @@ def encode_cached(model: Small_LLM_Model, text: str) -> List[int]:
     Returns:
         The list of token IDs for ``text``.
     """
-    return model.encode(text).tolist()[0]
+    return cast(List[int], model.encode(text).tolist()[0])
