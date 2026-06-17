@@ -3,7 +3,7 @@ import json
 import os
 from typing import NoReturn, List, Any
 from functools import lru_cache
-from llm_sdk import Small_LLM_Model
+from llm_sdk import Small_LLM_Model  # type: ignore
 from .schema import FunctionCall
 
 

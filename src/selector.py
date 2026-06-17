@@ -88,7 +88,7 @@ def select_function(model: Small_LLM_Model, request: Prompt,
         The selected function definition.
     """
     selection_prompt = _build_selection_prompt(request, functions)
-    selection_ids = encode_cached(model, selection_prompt)
+    selection_ids = model.encode(selection_prompt).tolist()[0]
     function_ids = _generate_function_ids(
         model, selection_ids, functions_tokens)
     function_name = model.decode(function_ids)
