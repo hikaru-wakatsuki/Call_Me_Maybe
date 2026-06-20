@@ -1,7 +1,7 @@
 from llm_sdk import Small_LLM_Model  # type: ignore
 from typing import List, Dict
 from .schema import FunctionDef, Prompt
-from .utils import encode_cached
+from .utils import encode_cached, append_tokens
 
 
 MAX_STEPS = 100
@@ -68,9 +68,7 @@ def _generate_function_ids(model: Small_LLM_Model, input_ids: List[int],
         for tokens in function_tokens.values():
             allowed.append(tokens[len(generated)])
         next_id = max(allowed, key=lambda i: logits[i])
-        if visualize:
-            print(model.decode([next_id]), end='')
-        generated.append(next_id)
+        append_tokens(model, generated, [next_id], visualize)
         for _, tokens in function_tokens.items():
             if tokens == generated:
                 return generated
@@ -93,9 +91,13 @@ def select_function(model: Small_LLM_Model, request: Prompt,
     Returns:
         The selected function definition.
     """
+    if visualize:
+        print("Selecting function: ", end='', flush=True)
     selection_prompt = _build_selection_prompt(request, functions)
     selection_ids = model.encode(selection_prompt).tolist()[0]
     function_ids = _generate_function_ids(
         model, selection_ids, functions_tokens, visualize)
+    if visualize:
+        print()
     function_name = model.decode(function_ids)
     return next(f for f in functions if f.name == function_name)

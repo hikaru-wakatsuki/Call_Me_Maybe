@@ -2,7 +2,7 @@ import json
 from llm_sdk import Small_LLM_Model  # type: ignore
 from typing import List, Dict
 from .schema import FunctionDef, Prompt, TypeDef, FunctionCall
-from .utils import encode_cached
+from .utils import encode_cached, append_tokens
 
 
 MAX_STEPS = 100
@@ -47,8 +47,7 @@ def _generate_primitive_ids(
         token = model.decode([next_id])
         if ',' in token or '}' in token or ']' in token:
             break
-        if visualize:
-            print(token, end='', flush=True)
+        append_tokens(model, generated, [next_id], visualize)
         generated.append(next_id)
     return generated
 
@@ -67,17 +66,15 @@ def _generate_string_ids(
         List of generated token IDs for the string value.
     """
     generated: List[int] = []
-    generated.extend(encode_cached(model, '"'))
+    append_tokens(model, generated, encode_cached(model, '"'), visualize)
     for _ in range(MAX_STEPS):
         logits = model.get_logits_from_input_ids(input_ids + generated)
         next_id = logits.index(max(logits))
         token = model.decode([next_id])
         if '"' in token:
             break
-        if visualize:
-            print(token, end='', flush=True)
-        generated.append(next_id)
-    generated.extend(encode_cached(model, '"'))
+        append_tokens(model, generated, [next_id], visualize)
+    append_tokens(model, generated, encode_cached(model, '"'), visualize)
     return generated
 
 
@@ -96,19 +93,19 @@ def _generate_array_ids(
         List of generated token IDs for the array value.
     """
     generated: List[int] = []
-    generated.extend(encode_cached(model, '['))
+    append_tokens(model, generated, encode_cached(model, '['), visualize)
     for _ in range(MAX_STEPS):
-        value_ids = _generate_value_ids(model, input_ids + generated, typedef)
+        value_ids = _generate_value_ids(
+            model, input_ids + generated, typedef, visualize)
         generated.extend(value_ids)
         logits = model.get_logits_from_input_ids(input_ids + generated)
         next_id = logits.index(max(logits))
         token = model.decode([next_id])
         if ']' in token:
             break
-        if visualize:
-            print(token, end='', flush=True)
-        generated.extend(encode_cached(model, ','))
-    generated.extend(encode_cached(model, ']'))
+        append_tokens(model, generated, [next_id], visualize)
+        append_tokens(model, generated, encode_cached(model, ','), visualize)
+    append_tokens(model, generated, encode_cached(model, ']'), visualize)
     return generated
 
 
@@ -153,15 +150,18 @@ def _generate_parameters_ids(model: Small_LLM_Model, input_ids: List[int],
         List of generated token IDs for the parameters.
     """
     generated: List[int] = []
-    generated.extend(encode_cached(model, '{'))
+    append_tokens(model, generated, encode_cached(model, '{'), visualize)
     params = list(parameters.items())
     for i, (key, typedef) in enumerate(params):
-        generated.extend(encode_cached(model, f'"{key}": '))
-        value_ids = _generate_value_ids(model, input_ids + generated, typedef)
+        append_tokens(
+            model, generated, encode_cached(model, f'"{key}": '), visualize)
+        value_ids = _generate_value_ids(
+            model, input_ids + generated, typedef, visualize)
         generated.extend(value_ids)
         if i < len(params) - 1:
-            generated.extend(encode_cached(model, ', '))
-    generated.extend(encode_cached(model, '}'))
+            append_tokens(
+                model, generated, encode_cached(model, ', '), visualize)
+    append_tokens(model, generated, encode_cached(model, '}'), visualize)
     return generated
 
 
@@ -179,10 +179,14 @@ def generate_function_call(model: Small_LLM_Model, request: Prompt,
     Returns:
         A FunctionCall object containing the function name and arguments.
     """
+    if visualize:
+        print("Generating arguments: ", end='', flush=True)
     parameters_prompt = _build_parameters_prompt(request, function)
     input_ids = model.encode(parameters_prompt).tolist()[0]
     parameters_ids = _generate_parameters_ids(
         model, input_ids, function.parameters, visualize)
+    if visualize:
+        print()
     parameters = json.loads(model.decode(parameters_ids))
     return FunctionCall(
         prompt=request.prompt, name=function.name, parameters=parameters)

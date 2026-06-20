@@ -29,6 +29,9 @@ def main() -> None:
     functions_tokens = build_functions_tokens(model, functions)
     results = []
     for prompt in prompts:
+        if args.visualize:
+            print("=" * 60)
+            print(f"Prompt: {prompt.prompt}")
         function = select_function(
             model, prompt, functions, functions_tokens, args.visualize)
         result = generate_function_call(

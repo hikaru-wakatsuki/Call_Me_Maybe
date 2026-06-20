@@ -66,3 +66,18 @@ def encode_cached(model: Small_LLM_Model, text: str) -> List[int]:
         The list of token IDs for ``text``.
     """
     return cast(List[int], model.encode(text).tolist()[0])
+
+
+def append_tokens(model: Small_LLM_Model, generated: List[int],
+                  token_ids: List[int], visualize: bool = False) -> None:
+    """Append token IDs to the generated sequence, optionally printing them.
+
+    Args:
+        model: The LLM model instance whose tokenizer is used.
+        generated: The list of generated token IDs, extended in place.
+        token_ids: The token IDs to append.
+        visualize: Whether to print the decoded text to the terminal.
+    """
+    generated.extend(token_ids)
+    if visualize:
+        print(model.decode(token_ids), end='', flush=True)
