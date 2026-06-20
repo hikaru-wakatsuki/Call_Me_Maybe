@@ -28,12 +28,14 @@ def _build_parameters_prompt(request: Prompt, function: FunctionDef) -> str:
 
 
 def _generate_primitive_ids(
-        model: Small_LLM_Model, input_ids: List[int]) -> List[int]:
+        model: Small_LLM_Model, input_ids: List[int],
+        visualize: bool = False) -> List[int]:
     """Generate token IDs for a primitive value (number, boolean, etc.).
 
     Args:
         model: The LLM model instance.
         input_ids: The input token IDs including the prompt.
+        visualize: Whether to print each generated token to the terminal.
 
     Returns:
         List of generated token IDs for the primitive value.
@@ -45,17 +47,21 @@ def _generate_primitive_ids(
         token = model.decode([next_id])
         if ',' in token or '}' in token or ']' in token:
             break
+        if visualize:
+            print(token, end='', flush=True)
         generated.append(next_id)
     return generated
 
 
 def _generate_string_ids(
-        model: Small_LLM_Model, input_ids: List[int]) -> List[int]:
+        model: Small_LLM_Model, input_ids: List[int],
+        visualize: bool = False) -> List[int]:
     """Generate token IDs for a string value, wrapped in double quotes.
 
     Args:
         model: The LLM model instance.
         input_ids: The input token IDs including the prompt.
+        visualize: Whether to print each generated token to the terminal.
 
     Returns:
         List of generated token IDs for the string value.
@@ -68,19 +74,23 @@ def _generate_string_ids(
         token = model.decode([next_id])
         if '"' in token:
             break
+        if visualize:
+            print(token, end='', flush=True)
         generated.append(next_id)
     generated.extend(encode_cached(model, '"'))
     return generated
 
 
-def _generate_array_ids(model: Small_LLM_Model, input_ids: List[int],
-                        typedef: TypeDef) -> List[int]:
+def _generate_array_ids(
+        model: Small_LLM_Model, input_ids: List[int],
+        typedef: TypeDef, visualize: bool = False) -> List[int]:
     """Generate token IDs for an array value.
 
     Args:
         model: The LLM model instance.
         input_ids: The input token IDs including the prompt.
         typedef: The type definition of the array elements.
+        visualize: Whether to print each generated token to the terminal.
 
     Returns:
         List of generated token IDs for the array value.
@@ -95,13 +105,16 @@ def _generate_array_ids(model: Small_LLM_Model, input_ids: List[int],
         token = model.decode([next_id])
         if ']' in token:
             break
+        if visualize:
+            print(token, end='', flush=True)
         generated.extend(encode_cached(model, ','))
     generated.extend(encode_cached(model, ']'))
     return generated
 
 
-def _generate_value_ids(model: Small_LLM_Model, input_ids: List[int],
-                        typedef: TypeDef) -> List[int]:
+def _generate_value_ids(
+        model: Small_LLM_Model, input_ids: List[int],
+        typedef: TypeDef, visualize: bool = False) -> List[int]:
     """Generate value tokens for a function argument using constrained
        decoding.
 
@@ -109,28 +122,32 @@ def _generate_value_ids(model: Small_LLM_Model, input_ids: List[int],
         model: The LLM model instance.
         input_ids: The input token IDs including the prompt.
         typedef: The type definition of the argument.
+        visualize: Whether to print each generated token to the terminal.
 
     Returns:
         List of generated token IDs for the value.
     """
     if typedef.properties is not None:
-        return _generate_parameters_ids(model, input_ids, typedef.properties)
+        return _generate_parameters_ids(
+            model, input_ids, typedef.properties, visualize)
     elif typedef.items is not None:
-        return _generate_array_ids(model, input_ids, typedef.items)
+        return _generate_array_ids(model, input_ids, typedef.items, visualize)
     elif typedef.type in ("string", "str"):
-        return _generate_string_ids(model, input_ids)
+        return _generate_string_ids(model, input_ids, visualize)
     else:
-        return _generate_primitive_ids(model, input_ids)
+        return _generate_primitive_ids(model, input_ids, visualize)
 
 
 def _generate_parameters_ids(model: Small_LLM_Model, input_ids: List[int],
-                             parameters:  Dict[str, TypeDef]) -> List[int]:
+                             parameters:  Dict[str, TypeDef],
+                             visualize: bool = False) -> List[int]:
     """Generate arguments for a function call using constrained decoding.
 
     Args:
         model: The LLM model instance.
         input_ids: The input token IDs including the prompt.
         parameters: Dictionary mapping parameter names to type definitions.
+        visualize: Whether to print each generated token to the terminal.
 
     Returns:
         List of generated token IDs for the parameters.
@@ -149,13 +166,15 @@ def _generate_parameters_ids(model: Small_LLM_Model, input_ids: List[int],
 
 
 def generate_function_call(model: Small_LLM_Model, request: Prompt,
-                           function: FunctionDef) -> FunctionCall:
+                           function: FunctionDef,
+                           visualize: bool = False) -> FunctionCall:
     """Generate a function call from a natural language prompt.
 
     Args:
         model: The LLM model instance.
         request: The user's prompt.
         function: The selected function definition.
+        visualize: Whether to print each generated token to the terminal.
 
     Returns:
         A FunctionCall object containing the function name and arguments.
@@ -163,7 +182,7 @@ def generate_function_call(model: Small_LLM_Model, request: Prompt,
     parameters_prompt = _build_parameters_prompt(request, function)
     input_ids = model.encode(parameters_prompt).tolist()[0]
     parameters_ids = _generate_parameters_ids(
-        model, input_ids, function.parameters)
+        model, input_ids, function.parameters, visualize)
     parameters = json.loads(model.decode(parameters_ids))
     return FunctionCall(
         prompt=request.prompt, name=function.name, parameters=parameters)

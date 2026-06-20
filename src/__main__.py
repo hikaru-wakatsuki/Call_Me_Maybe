@@ -19,6 +19,7 @@ def main() -> None:
         '--input', default='data/input/function_calling_tests.json')
     parse.add_argument('--output', default='data/output/function_calls.json')
     parse.add_argument('--model', default='Qwen/Qwen3-0.6B')
+    parse.add_argument('--visualize', action='store_true')
     args = parse.parse_args()
 
     model = load_model(args.model)
@@ -28,8 +29,10 @@ def main() -> None:
     functions_tokens = build_functions_tokens(model, functions)
     results = []
     for prompt in prompts:
-        function = select_function(model, prompt, functions, functions_tokens)
-        result = generate_function_call(model, prompt, function)
+        function = select_function(
+            model, prompt, functions, functions_tokens, args.visualize)
+        result = generate_function_call(
+            model, prompt, function, args.visualize)
         results.append(result)
 
     write_output(args.output, results)

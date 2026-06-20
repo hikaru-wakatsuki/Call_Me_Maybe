@@ -48,13 +48,15 @@ def _build_selection_prompt(
 
 
 def _generate_function_ids(model: Small_LLM_Model, input_ids: List[int],
-                           function_tokens: Dict[str, List[int]]) -> List[int]:
+                           function_tokens: Dict[str, List[int]],
+                           visualize: bool = False) -> List[int]:
     """Select the appropriate function using constrained decoding.
 
     Args:
         model: The LLM model instance.
         input_ids: The input token IDs including the selection prompt.
         function_tokens: Dictionary mapping function names to token IDs.
+        visualize: Whether to print each generated token to the terminal.
 
     Returns:
         List of token IDs representing the selected function name.
@@ -66,6 +68,8 @@ def _generate_function_ids(model: Small_LLM_Model, input_ids: List[int],
         for tokens in function_tokens.values():
             allowed.append(tokens[len(generated)])
         next_id = max(allowed, key=lambda i: logits[i])
+        if visualize:
+            print(model.decode([next_id]), end='')
         generated.append(next_id)
         for _, tokens in function_tokens.items():
             if tokens == generated:
@@ -74,7 +78,8 @@ def _generate_function_ids(model: Small_LLM_Model, input_ids: List[int],
 
 def select_function(model: Small_LLM_Model, request: Prompt,
                     functions: List[FunctionDef],
-                    functions_tokens: Dict[str, List[int]]) -> FunctionDef:
+                    functions_tokens: Dict[str, List[int]],
+                    visualize: bool = False) -> FunctionDef:
     """Select the appropriate function for a given request.
 
     Args:
@@ -83,6 +88,7 @@ def select_function(model: Small_LLM_Model, request: Prompt,
         functions: List of available function definitions.
         functions_tokens: Mapping of function names to their token IDs,
             precomputed once and reused across prompts.
+        visualize: Whether to print each generated token to the terminal.
 
     Returns:
         The selected function definition.
@@ -90,6 +96,6 @@ def select_function(model: Small_LLM_Model, request: Prompt,
     selection_prompt = _build_selection_prompt(request, functions)
     selection_ids = model.encode(selection_prompt).tolist()[0]
     function_ids = _generate_function_ids(
-        model, selection_ids, functions_tokens)
+        model, selection_ids, functions_tokens, visualize)
     function_name = model.decode(function_ids)
     return next(f for f in functions if f.name == function_name)
