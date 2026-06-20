@@ -48,7 +48,6 @@ def _generate_primitive_ids(
         if ',' in token or '}' in token or ']' in token:
             break
         append_tokens(model, generated, [next_id], visualize)
-        generated.append(next_id)
     return generated
 
 
