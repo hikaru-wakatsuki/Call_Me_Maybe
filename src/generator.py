@@ -102,7 +102,6 @@ def _generate_array_ids(
         token = model.decode([next_id])
         if ']' in token:
             break
-        append_tokens(model, generated, [next_id], visualize)
         append_tokens(model, generated, encode_cached(model, ','), visualize)
     append_tokens(model, generated, encode_cached(model, ']'), visualize)
     return generated
