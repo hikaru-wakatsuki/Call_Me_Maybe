@@ -16,7 +16,7 @@ def decode_custom(ids: List[int], id_to_token: Dict[int, str]) -> str:
         raw = "".join(id_to_token[id] for id in ids)
     except KeyError as e:
         handle_error(f"Error: Unknown token ID encountered during decode: {e}")
-    return raw.replace("Ġ", " ")
+    return raw.replace("Ġ", " ").replace("Ċ", "\n")
 
 
 def append_tokens(generated: List[int], token_ids: List[int],

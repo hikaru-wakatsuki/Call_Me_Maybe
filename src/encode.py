@@ -63,7 +63,7 @@ def encode_custom(text: str, token_to_id: Dict[str, int]) -> List[int]:
     Returns:
         List of token IDs for the text.
     """
-    marked = text.replace(" ", "Ġ")
+    marked = text.replace(" ", "Ġ").replace("\n", "Ċ")
     chunks = _split_into_chunks(marked)
     ids: List[int] = []
     for chunk in chunks:
