@@ -2,14 +2,15 @@ import argparse
 from .loader import load_functions, load_prompts, load_model
 from .selector import build_functions_tokens, select_function
 from .generator import generate_function_call
-from .utils import write_output
+from .utils import write_output, load_vocab
+from .encode import build_cached_encoder
 
 
-def main() -> None:
-    """Entry point for the function calling tool.
+def _parse_args() -> argparse.Namespace:
+    """Parse command line arguments.
 
-    Parses command line arguments, loads input files, runs the generation
-    pipeline for each prompt, and writes results to the output file.
+    Returns:
+        Parsed arguments namespace.
     """
     parse = argparse.ArgumentParser()
     parse.add_argument(
@@ -20,22 +21,33 @@ def main() -> None:
     parse.add_argument('--output', default='data/output/function_calls.json')
     parse.add_argument('--model', default='Qwen/Qwen3-0.6B')
     parse.add_argument('--visualize', action='store_true')
-    args = parse.parse_args()
+    return parse.parse_args()
 
+
+def main() -> None:
+    """Entry point for the function calling tool.
+
+    Parses command line arguments, loads input files, runs the generation
+    pipeline for each prompt, and writes results to the output file.
+    """
+    args = _parse_args()
     model = load_model(args.model)
+    token_to_id, id_to_token = load_vocab(model)
     functions = load_functions(args.functions_definition)
     prompts = load_prompts(args.input)
-
-    functions_tokens = build_functions_tokens(model, functions)
+    encode_cashed = build_cached_encoder(token_to_id)
+    functions_tokens = build_functions_tokens(functions, encode_cashed)
     results = []
     for prompt in prompts:
         if args.visualize:
             print("=" * 60)
             print(f"Prompt: {prompt.prompt}")
         function = select_function(
-            model, prompt, functions, functions_tokens, args.visualize)
+            model, prompt, functions, functions_tokens,
+            token_to_id, id_to_token, args.visualize)
         result = generate_function_call(
-            model, prompt, function, args.visualize)
+            model, prompt, function, token_to_id, id_to_token,
+            encode_cashed, args.visualize)
         results.append(result)
 
     write_output(args.output, results)

@@ -1,27 +1,29 @@
 from llm_sdk import Small_LLM_Model  # type: ignore
-from typing import List, Dict
+from typing import List, Dict, Callable
 from .schema import FunctionDef, Prompt
-from .utils import encode_cached, append_tokens
+from .utils import append_tokens
+from .encode import encode_custom
+from .decode import decode_custom
 
 
 MAX_STEPS = 100
 
 
 def build_functions_tokens(
-        model: Small_LLM_Model,
-        functions: List[FunctionDef]) -> Dict[str, List[int]]:
+        functions: List[FunctionDef], encode_cached: Callable[[str], List[int]]
+                           ) -> Dict[str, List[int]]:
     """Build a mapping of function names to their token IDs.
 
     Args:
-        model: The LLM model instance.
         functions: List of function definitions.
+        encode_cached: Cached encoder for fixed/repeating text.
 
     Returns:
         Dictionary mapping function names to lists of token IDs.
     """
-    function_tokens = {}
+    function_tokens: Dict[str, List[int]] = {}
     for function in functions:
-        ids = encode_cached(model, function.name)
+        ids = encode_cached(function.name)
         function_tokens[function.name] = ids
     return function_tokens
 
@@ -49,6 +51,7 @@ def _build_selection_prompt(
 
 def _generate_function_ids(model: Small_LLM_Model, input_ids: List[int],
                            function_tokens: Dict[str, List[int]],
+                           id_to_token: Dict[int, str],
                            visualize: bool = False) -> List[int]:
     """Select the appropriate function using constrained decoding.
 
@@ -56,6 +59,7 @@ def _generate_function_ids(model: Small_LLM_Model, input_ids: List[int],
         model: The LLM model instance.
         input_ids: The input token IDs including the selection prompt.
         function_tokens: Dictionary mapping function names to token IDs.
+        id_to_token: Mapping from token ID to raw vocabulary token string.
         visualize: Whether to print each generated token to the terminal.
 
     Returns:
@@ -68,7 +72,7 @@ def _generate_function_ids(model: Small_LLM_Model, input_ids: List[int],
         for tokens in function_tokens.values():
             allowed.append(tokens[len(generated)])
         next_id = max(allowed, key=lambda i: logits[i])
-        append_tokens(model, generated, [next_id], visualize)
+        append_tokens(generated, [next_id], id_to_token, visualize)
         for _, tokens in function_tokens.items():
             if tokens == generated:
                 return generated
@@ -77,6 +81,7 @@ def _generate_function_ids(model: Small_LLM_Model, input_ids: List[int],
 def select_function(model: Small_LLM_Model, request: Prompt,
                     functions: List[FunctionDef],
                     functions_tokens: Dict[str, List[int]],
+                    token_to_id: Dict[str, int], id_to_token: Dict[int, str],
                     visualize: bool = False) -> FunctionDef:
     """Select the appropriate function for a given request.
 
@@ -86,6 +91,8 @@ def select_function(model: Small_LLM_Model, request: Prompt,
         functions: List of available function definitions.
         functions_tokens: Mapping of function names to their token IDs,
             precomputed once and reused across prompts.
+        token_to_id: Mapping from vocab token string to ID.
+        id_to_token: Mapping from token ID to raw vocabulary token string.
         visualize: Whether to print each generated token to the terminal.
 
     Returns:
@@ -94,10 +101,10 @@ def select_function(model: Small_LLM_Model, request: Prompt,
     if visualize:
         print("Selecting function: ", end='', flush=True)
     selection_prompt = _build_selection_prompt(request, functions)
-    selection_ids = model.encode(selection_prompt).tolist()[0]
+    selection_ids = encode_custom(selection_prompt, token_to_id)
     function_ids = _generate_function_ids(
-        model, selection_ids, functions_tokens, visualize)
+        model, selection_ids, functions_tokens, id_to_token, visualize)
     if visualize:
         print()
-    function_name = model.decode(function_ids)
+    function_name = decode_custom(function_ids, id_to_token)
     return next(f for f in functions if f.name == function_name)
