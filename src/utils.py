@@ -1,10 +1,9 @@
 import sys
 import json
 import os
-from typing import NoReturn, List, Any, cast
-from functools import lru_cache
-from llm_sdk import Small_LLM_Model  # type: ignore
+from typing import NoReturn, List, Any, Dict, Tuple
 from .schema import FunctionCall
+from llm_sdk import Small_LLM_Model  # type: ignore
 
 
 def handle_error(message: str) -> NoReturn:
@@ -37,6 +36,22 @@ def json_file_read(file_path: str) -> Any:
         handle_error(f"Error: Invalid JSON in {file_path}: {error}")
 
 
+def load_vocab(
+        model: Small_LLM_Model) -> Tuple[Dict[str, int], Dict[int, str]]:
+    """Build vocabulary dictionaries from the model's vocab file.
+
+    Args:
+        model: The LLM model instance.
+
+    Returns:
+        A tuple of (token_to_id, id_to_token) dictionaries.
+    """
+    path = model.get_path_to_vocab_file()
+    token_to_id = json_file_read(path)
+    id_to_token = {value: key for key, value in token_to_id.items()}
+    return token_to_id, id_to_token
+
+
 def write_output(file_path: str, results: List[FunctionCall]) -> None:
     """Write function call results to a JSON file.
 
@@ -52,32 +67,3 @@ def write_output(file_path: str, results: List[FunctionCall]) -> None:
         handle_error(f"Error: Permission denied: {file_path}")
     except OSError as e:
         handle_error(f"Error: Failed to write output: {e}")
-
-
-@lru_cache(maxsize=None)
-def encode_cached(model: Small_LLM_Model, text: str) -> List[int]:
-    """Encode a fixed/repeating string, caching the result per model.
-
-    Args:
-        model: The LLM model instance whose tokenizer is used.
-        text: The fixed text to encode.
-
-    Returns:
-        The list of token IDs for ``text``.
-    """
-    return cast(List[int], model.encode(text).tolist()[0])
-
-
-def append_tokens(model: Small_LLM_Model, generated: List[int],
-                  token_ids: List[int], visualize: bool = False) -> None:
-    """Append token IDs to the generated sequence, optionally printing them.
-
-    Args:
-        model: The LLM model instance whose tokenizer is used.
-        generated: The list of generated token IDs, extended in place.
-        token_ids: The token IDs to append.
-        visualize: Whether to print the decoded text to the terminal.
-    """
-    generated.extend(token_ids)
-    if visualize:
-        print(model.decode(token_ids), end='', flush=True)

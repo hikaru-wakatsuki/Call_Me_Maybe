@@ -1,39 +1,6 @@
-from llm_sdk import Small_LLM_Model  # type: ignore
-from typing import Dict, Tuple, List
-from .utils import json_file_read, handle_error
-
-
-def load_vocab(
-        model: Small_LLM_Model) -> Tuple[Dict[str, int], Dict[int, str]]:
-    """Build vocabulary dictionaries from the model's vocab file.
-
-    Args:
-        model: The LLM model instance.
-
-    Returns:
-        A tuple of (token_to_id, id_to_token) dictionaries.
-    """
-    path = model.get_path_to_vocab_file()
-    token_to_id = json_file_read(path)
-    id_to_token = {value: key for key, value in token_to_id.items()}
-    return token_to_id, id_to_token
-
-
-def decode_custom(ids: List[int], id_to_token: Dict[int, str]) -> str:
-    """Decode token IDs back into text without using the SDK's decode.
-
-    Args:
-        ids: List of token IDs to decode.
-        id_to_token: Mapping from token ID to raw vocabulary token string.
-
-    Returns:
-        The decoded text.
-    """
-    try:
-        raw = "".join(id_to_token[id] for id in ids)
-    except KeyError as e:
-        handle_error(f"Error: Unknown token ID encountered during decode: {e}")
-    return raw.replace("Ġ", " ")
+from typing import Dict, List, Callable
+from .utils import handle_error
+from functools import lru_cache
 
 
 def _split_into_chunks(marked: str) -> List[str]:
@@ -102,3 +69,19 @@ def encode_custom(text: str, token_to_id: Dict[str, int]) -> List[int]:
     for chunk in chunks:
         ids.extend(_encode_chunk(chunk, token_to_id))
     return ids
+
+
+def build_cached_encoder(
+        token_to_id: Dict[str, int]) -> Callable[[str], List[int]]:
+    """Build a cached encode function bound to a specific vocabulary.
+
+    Args:
+        token_to_id: Mapping from vocab token string to ID.
+
+    Returns:
+        A cached function that encodes fixed/repeating text.
+    """
+    @lru_cache(maxsize=None)
+    def encode_cached(text: str) -> List[int]:
+        return encode_custom(text, token_to_id)
+    return encode_cached
