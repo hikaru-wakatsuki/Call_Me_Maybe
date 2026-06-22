@@ -69,7 +69,8 @@ def _generate_function_ids(model: Small_LLM_Model, input_ids: List[int],
         logits = model.get_logits_from_input_ids(input_ids + generated)
         allowed = []
         for tokens in function_tokens.values():
-            allowed.append(tokens[len(generated)])
+            if len(generated) < len(tokens):
+                allowed.append(tokens[len(generated)])
         next_id = max(allowed, key=lambda i: logits[i])
         append_tokens(generated, [next_id], id_to_token, visualize)
         for _, tokens in function_tokens.items():
