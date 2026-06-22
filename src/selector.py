@@ -1,9 +1,8 @@
 from llm_sdk import Small_LLM_Model  # type: ignore
 from typing import List, Dict, Callable
 from .schema import FunctionDef, Prompt
-from .utils import append_tokens
 from .encode import encode_custom
-from .decode import decode_custom
+from .decode import append_tokens, decode_custom
 
 
 MAX_STEPS = 100

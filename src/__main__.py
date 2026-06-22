@@ -35,8 +35,8 @@ def main() -> None:
     token_to_id, id_to_token = load_vocab(model)
     functions = load_functions(args.functions_definition)
     prompts = load_prompts(args.input)
-    encode_cashed = build_cached_encoder(token_to_id)
-    functions_tokens = build_functions_tokens(functions, encode_cashed)
+    encode_cached = build_cached_encoder(token_to_id)
+    functions_tokens = build_functions_tokens(functions, encode_cached)
     results = []
     for prompt in prompts:
         if args.visualize:
@@ -47,7 +47,7 @@ def main() -> None:
             token_to_id, id_to_token, args.visualize)
         result = generate_function_call(
             model, prompt, function, token_to_id, id_to_token,
-            encode_cashed, args.visualize)
+            encode_cached, args.visualize)
         results.append(result)
 
     write_output(args.output, results)
