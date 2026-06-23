@@ -21,27 +21,37 @@ malformed JSON and never needs to retry or repair its output.
 ## Instructions
 
 The project uses [`uv`](https://docs.astral.sh/uv/) for dependency
-management. Dependencies (including the local `llm_sdk` and the model) are
-resolved automatically on first run.
+management and a `Makefile` for all common tasks.
 
 ```bash
-# Run with default model and input/output paths
-uv run python -m src
+# Install dependencies (including the local llm_sdk)
+make install
 
-# Use a specific model
-uv run python -m src --model Qwen/Qwen3-0.6B
+# Run with default model and input/output paths
+make run
 
 # Watch the constrained decoding process token by token
-uv run python -m src --visualize
+make visualize
 
-# Run the linters (flake8 + mypy)
+# Run the program under the Python debugger
+make debug
+
+# Run the linters (flake8 + mypy, default rules)
 make lint
+
+# Run the linters with mypy --strict
+make lint-strict
 
 # Run the test suite
 make test
+
+# Remove caches and bytecode
+make clean
 ```
 
-Command-line options:
+`make run` and `make visualize` both run `python -m src`, which also accepts
+the following CLI options directly if you need to override a default (e.g.
+`uv run python -m src --model Qwen/Qwen3-0.6B`):
 
 - `--functions_definition` — path to the function definitions JSON
   (default `data/input/functions_definition.json`).
