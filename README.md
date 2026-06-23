@@ -31,7 +31,7 @@ make install
 make run
 
 # Watch the constrained decoding process token by token
-make visualize
+make run-visualize
 
 # Run the program under the Python debugger
 make debug
@@ -49,7 +49,7 @@ make test
 make clean
 ```
 
-`make run` and `make visualize` both run `python -m src`, which also accepts
+`make run` and `make run-visualize` both run `python -m src`, which also accepts
 the following CLI options directly if you need to override a default (e.g.
 `uv run python -m src --model Qwen/Qwen3-0.6B`):
 

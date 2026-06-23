@@ -4,7 +4,7 @@ install:
 run:
 	uv run python -m src
 
-visualize:
+run-visualize:
 	uv run python -m src --visualize
 
 debug:
