@@ -32,4 +32,5 @@ def append_tokens(generated: List[int], token_ids: List[int],
     """
     generated.extend(token_ids)
     if visualize:
-        print(decode_custom(token_ids, id_to_token), end='', flush=True)
+        print(decode_custom(token_ids, id_to_token).rstrip("\n"),
+              end='', flush=True)

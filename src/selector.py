@@ -18,12 +18,12 @@ def build_functions_tokens(
         encode_cached: Cached encoder for fixed/repeating text.
 
     Returns:
-        Dictionary mapping function names to lists of token IDs.
+        Dictionary mapping function names to lists of token IDs, each
+        terminated by a newline so that no name is a prefix of another.
     """
     function_tokens: Dict[str, List[int]] = {}
     for function in functions:
-        ids = encode_cached(function.name)
-        function_tokens[function.name] = ids
+        function_tokens[function.name] = encode_cached(function.name + "\n")
     return function_tokens
 
 
@@ -44,7 +44,7 @@ def _build_selection_prompt(
             f"{k}: {v.type}" for k, v in function.parameters.items())
         prompt += f"\n- {function.name}({params}): {function.description}"
     prompt += f"\nUser request: {request.prompt}"
-    prompt += "\nFunction name:"
+    prompt += "\nFunction name (end with a newline):"
     return prompt
 
 
@@ -57,25 +57,26 @@ def _generate_function_ids(model: Small_LLM_Model, input_ids: List[int],
     Args:
         model: The LLM model instance.
         input_ids: The input token IDs including the selection prompt.
-        function_tokens: Dictionary mapping function names to token IDs.
+        function_tokens: Dictionary mapping function names to token IDs,
+            each terminated by a newline.
         id_to_token: Mapping from token ID to raw vocabulary token string.
         visualize: Whether to print each generated token to the terminal.
 
     Returns:
-        List of token IDs representing the selected function name.
+        List of token IDs representing the selected function name,
+        including the trailing newline.
     """
     generated: List[int] = []
     while True:
-        logits = model.get_logits_from_input_ids(input_ids + generated)
-        allowed = []
-        for tokens in function_tokens.values():
-            if len(generated) < len(tokens):
-                allowed.append(tokens[len(generated)])
-        next_id = max(allowed, key=lambda i: logits[i])
-        append_tokens(generated, [next_id], id_to_token, visualize)
-        for _, tokens in function_tokens.items():
+        candidates = [tokens for tokens in function_tokens.values()
+                      if tokens[:len(generated)] == generated]
+        for tokens in candidates:
             if tokens == generated:
                 return generated
+        logits = model.get_logits_from_input_ids(input_ids + generated)
+        allowed = [tokens[len(generated)] for tokens in candidates]
+        next_id = max(allowed, key=lambda i: logits[i])
+        append_tokens(generated, [next_id], id_to_token, visualize)
 
 
 def select_function(model: Small_LLM_Model, request: Prompt,
@@ -106,5 +107,5 @@ def select_function(model: Small_LLM_Model, request: Prompt,
         model, selection_ids, functions_tokens, id_to_token, visualize)
     if visualize:
         print()
-    function_name = decode_custom(function_ids, id_to_token)
+    function_name = decode_custom(function_ids, id_to_token).rstrip("\n")
     return next(f for f in functions if f.name == function_name)
