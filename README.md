@@ -49,9 +49,9 @@ make test
 make clean
 ```
 
-`make run` and `make run-visualize` both run `python -m src`, which also accepts
-the following CLI options directly if you need to override a default (e.g.
-`uv run python -m src --model Qwen/Qwen3-0.6B`):
+`make run` and `make run-visualize` both run `python -m src`, which also
+accepts the following CLI options directly if you need to override a
+default (e.g. `uv run python -m src --model Qwen/Qwen3-0.6B`):
 
 - `--functions_definition` — path to the function definitions JSON
   (default `data/input/functions_definition.json`).
@@ -120,6 +120,11 @@ prompt and model always yield the same result.
   prompts — function names and JSON structural tokens. The natural-language
   prompt is never cached, since it differs on every call and would never
   produce a cache hit.
+- **Function names are tokenized with a trailing newline**: each candidate
+  function name is encoded as `name + "\n"` rather than just `name`. This
+  guarantees no candidate's token sequence is a prefix of another's, so the
+  selection loop can always tell whether the model intends to stop at the
+  current name or continue into a longer one (see Challenges Faced).
 
 ## Performance Analysis
 
@@ -140,8 +145,18 @@ prompt and model always yield the same result.
 - **Token-length mismatch between candidate function names**: the
   function-selection loop originally assumed every candidate name had the
   same number of tokens, causing an `IndexError` once names of different
-  token lengths were compared at the same step. Fixed by skipping any
-  candidate whose token sequence is already exhausted at the current step.
+  token lengths were compared at the same step. Fixed by only keeping
+  candidates whose token sequence still matches everything generated so
+  far (`tokens[:len(generated)] == generated`), rather than only checking
+  remaining length.
+- **One function name being a prefix of another**: if two function names
+  share a token prefix (e.g. `fn_add` and `fn_add_plus`), the original loop
+  would stop as soon as `generated` matched the shorter name exactly, even
+  if the model intended to continue into the longer one — the shorter name
+  could never lose that comparison once reached. Fixed by tokenizing each
+  function name with a trailing newline, so no name's tokens are ever a
+  prefix of another's; the model can then genuinely choose between
+  "stop here" and "continue" at every shared step.
 - **Byte-level markers beyond spaces**: the subject example only documents
   the space marker (`Ġ`), but the program's internally built prompts contain
   newlines, so the custom tokenizer also had to handle the newline marker
@@ -150,7 +165,10 @@ prompt and model always yield the same result.
   manually (`flush=True`) and must only print tokens that are actually kept.
   Printing a token that is later discarded (e.g. a JSON delimiter detected
   one step too early) produced duplicated or missing characters until the
-  print position was aligned with the append logic.
+  print position was aligned with the append logic. The trailing newline
+  added to terminate function-name generation also had to be stripped from
+  the visualized output specifically, to avoid an extra blank line between
+  the selected function name and the next printed line.
 
 ## Testing Strategy
 
@@ -248,7 +266,8 @@ the project. Specifically:
 - **Design discussion**: weighing where to place the token cache, how to
   structure the custom tokenizer (greedy longest-match vs. full BPE), and
   how to split responsibilities across files.
-- **Debugging**: diagnosing the function-name `IndexError`, the missing
+- **Debugging**: diagnosing the function-name `IndexError`, the
+  prefix-collision bug between candidate function names, the missing
   newline marker in the custom tokenizer, and the token-printing
   misalignment in the visualization.
 - **Code review**: checking type hints, docstrings, and `flake8`/`mypy`
