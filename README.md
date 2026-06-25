@@ -223,8 +223,7 @@ Resulting entry written to the output JSON:
 | Comprehensive test suite | Implemented |
 | Visualization of the generation process (`--visualize`) | Implemented |
 | Advanced error recovery mechanisms | Implemented |
-| Performance optimization — caching | Implemented |
-| Performance optimization — batching | Not implemented (see below) |
+| Performance optimization | Implemented |
 | Tokenizer reimplementation (`encode_custom` / `decode_custom`) | Implemented |
 | Public `encode` / `decode` implementation | Implemented |
 | Integration of custom tokenizer with constrained decoding | Implemented |
@@ -244,11 +243,7 @@ accepted trade-off — the subject only requires `vocab.json`.
 `get_logits_from_input_ids(input_ids: list[int])`, accepts exactly one token
 sequence at a time, with no documented way to pass a batch dimension. True
 batching (stacking several prompts into one tensor for a single forward
-pass) is therefore impossible through the public API. A thread-based
-parallel alternative was considered (PyTorch releases the GIL during the
-native compute portion of each call), but it is not true batching and would
-give no measurable benefit on the small, short test set, so it was not
-implemented.
+pass) is therefore impossible through the public API.
 
 ## Resources
 
