@@ -5,6 +5,7 @@ __pycache__/
 *.py[cod]
 *.pyo
 .mypy_cache/
+.pytest_cache
 
 # uv / venv
 .venv/
