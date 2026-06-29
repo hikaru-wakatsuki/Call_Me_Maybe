@@ -64,6 +64,80 @@ def _generate_primitive_ids(
     return generated
 
 
+def _generate_number_ids(
+        model: Small_LLM_Model, input_ids: List[int],
+        id_to_token: Dict[int, str],
+        number_token_ids: List[int],
+        encode_cached: Callable[[str], List[int]],
+        visualize: bool = False) -> List[int]:
+    """Generate token IDs for a number value, masking non-numeric tokens.
+
+    At each step, only tokens consisting of digits, '.', or '-' (or a
+    JSON terminator) are considered, so the model cannot generate a
+    malformed number.
+
+    Args:
+        model: The LLM model instance.
+        input_ids: The input token IDs including the prompt.
+        id_to_token: Mapping from token ID to raw vocabulary token string.
+        number_token_ids: Vocabulary token IDs valid during number
+            generation, precomputed once for the vocabulary.
+        encode_cached: Cached encoder for fixed/repeating text.
+        visualize: Whether to print each generated token to the terminal.
+
+    Returns:
+        List of generated token IDs for the number value.
+    """
+    generated: List[int] = []
+    for _ in range(MAX_STEPS):
+        logits = model.get_logits_from_input_ids(input_ids + generated)
+        next_id = max(number_token_ids, key=lambda i: logits[i])
+        token = decode_custom([next_id], id_to_token)
+        stop_positions = [token.index(c) for c in (',', '}', ']')
+                          if c in token]
+        if stop_positions:
+            before = token[:min(stop_positions)]
+            if before:
+                append_tokens(
+                    generated, encode_cached(before), id_to_token, visualize)
+            break
+        append_tokens(generated, [next_id], id_to_token, visualize)
+    return generated
+
+
+def _generate_boolean_ids(
+        model: Small_LLM_Model, input_ids: List[int],
+        id_to_token: Dict[int, str],
+        encode_cached: Callable[[str], List[int]],
+        visualize: bool = False) -> List[int]:
+    """Generate token IDs for a boolean value using constrained decoding.
+
+    Only "true" and "false" are valid candidates; at each step, tokens
+    that no longer match either candidate are excluded.
+
+    Args:
+        model: The LLM model instance.
+        input_ids: The input token IDs including the prompt.
+        id_to_token: Mapping from token ID to raw vocabulary token string.
+        encode_cached: Cached encoder for fixed/repeating text.
+        visualize: Whether to print each generated token to the terminal.
+
+    Returns:
+        List of generated token IDs for "true" or "false".
+    """
+    candidates = [encode_cached("true"), encode_cached("false")]
+    generated: List[int] = []
+    while True:
+        logits = model.get_logits_from_input_ids(input_ids + generated)
+        remaining = [c for c in candidates if c[:len(generated)] == generated]
+        allowed = [c[len(generated)] for c in remaining]
+        next_id = max(allowed, key=lambda i: logits[i])
+        append_tokens(generated, [next_id], id_to_token, visualize)
+        for c in remaining:
+            if c == generated:
+                return generated
+
+
 def _generate_string_ids(
         model: Small_LLM_Model, input_ids: List[int],
         id_to_token: Dict[int, str],
@@ -101,6 +175,7 @@ def _generate_string_ids(
 def _generate_array_ids(
         model: Small_LLM_Model, input_ids: List[int],
         typedef: TypeDef, id_to_token: Dict[int, str],
+        number_tokens_ids: List[int],
         encode_cached: Callable[[str], List[int]],
         visualize: bool = False) -> List[int]:
     """Generate token IDs for an array value.
@@ -110,6 +185,8 @@ def _generate_array_ids(
         input_ids: The input token IDs including the prompt.
         typedef: The type definition of the array elements.
         id_to_token: Mapping from token ID to raw vocabulary token string.
+        number_tokens_ids: Vocabulary token IDs valid during number
+            generation, precomputed once for the vocabulary.
         encode_cached: Cached encoder for fixed/repeating text.
         visualize: Whether to print each generated token to the terminal.
 
@@ -121,7 +198,7 @@ def _generate_array_ids(
     for _ in range(MAX_STEPS):
         value_ids = _generate_value_ids(
             model, input_ids + generated, typedef,
-            id_to_token, encode_cached, visualize)
+            id_to_token, number_tokens_ids, encode_cached, visualize)
         generated.extend(value_ids)
         logits = model.get_logits_from_input_ids(input_ids + generated)
         next_id = logits.index(max(logits))
@@ -136,6 +213,7 @@ def _generate_array_ids(
 def _generate_value_ids(
         model: Small_LLM_Model, input_ids: List[int],
         typedef: TypeDef, id_to_token: Dict[int, str],
+        number_tokens_ids: List[int],
         encode_cached: Callable[[str], List[int]],
         visualize: bool = False) -> List[int]:
     """Generate value tokens for a function argument using constrained
@@ -146,6 +224,8 @@ def _generate_value_ids(
         input_ids: The input token IDs including the prompt.
         typedef: The type definition of the argument.
         id_to_token: Mapping from token ID to raw vocabulary token string.
+        number_tokens_ids: Vocabulary token IDs valid during number
+            generation, precomputed once for the vocabulary.
         encode_cached: Cached encoder for fixed/repeating text.
         visualize: Whether to print each generated token to the terminal.
 
@@ -155,14 +235,21 @@ def _generate_value_ids(
     if typedef.properties is not None:
         return _generate_parameters_ids(
             model, input_ids, typedef.properties,
-            id_to_token, encode_cached, visualize)
+            id_to_token, number_tokens_ids, encode_cached, visualize)
     elif typedef.items is not None:
         return _generate_array_ids(
             model, input_ids, typedef.items,
-            id_to_token, encode_cached, visualize)
+            id_to_token, number_tokens_ids, encode_cached, visualize)
     elif typedef.type in ("string", "str"):
         return _generate_string_ids(
             model, input_ids, id_to_token, encode_cached, visualize)
+    elif typedef.type in ("boolean", "bool"):
+        return _generate_boolean_ids(
+            model, input_ids, id_to_token, encode_cached, visualize)
+    elif typedef.type in ("number", "int", "integer", "float"):
+        return _generate_number_ids(
+            model, input_ids, id_to_token,
+            number_tokens_ids, encode_cached, visualize)
     else:
         return _generate_primitive_ids(
             model, input_ids, id_to_token, encode_cached, visualize)
@@ -171,6 +258,7 @@ def _generate_value_ids(
 def _generate_parameters_ids(model: Small_LLM_Model, input_ids: List[int],
                              parameters: Dict[str, TypeDef],
                              id_to_token: Dict[int, str],
+                             number_tokens_ids: List[int],
                              encode_cached: Callable[[str], List[int]],
                              visualize: bool = False) -> List[int]:
     """Generate arguments for a function call using constrained decoding.
@@ -180,6 +268,8 @@ def _generate_parameters_ids(model: Small_LLM_Model, input_ids: List[int],
         input_ids: The input token IDs including the prompt.
         parameters: Dictionary mapping parameter names to type definitions.
         id_to_token: Mapping from token ID to raw vocabulary token string.
+        number_tokens_ids: Vocabulary token IDs valid during number
+            generation, precomputed once for the vocabulary.
         encode_cached: Cached encoder for fixed/repeating text.
         visualize: Whether to print each generated token to the terminal.
 
@@ -194,7 +284,7 @@ def _generate_parameters_ids(model: Small_LLM_Model, input_ids: List[int],
             generated, encode_cached(f'"{key}": '), id_to_token, visualize)
         value_ids = _generate_value_ids(
             model, input_ids + generated, typedef,
-            id_to_token, encode_cached, visualize)
+            id_to_token, number_tokens_ids, encode_cached, visualize)
         generated.extend(value_ids)
         if i < len(params) - 1:
             append_tokens(
@@ -207,6 +297,7 @@ def generate_function_call(model: Small_LLM_Model, request: Prompt,
                            function: FunctionDef,
                            token_to_id: Dict[str, int],
                            id_to_token: Dict[int, str],
+                           number_tokens_ids: List[int],
                            encode_cached: Callable[[str], List[int]],
                            visualize: bool = False) -> FunctionCall:
     """Generate a function call from a natural language prompt.
@@ -217,6 +308,8 @@ def generate_function_call(model: Small_LLM_Model, request: Prompt,
         function: The selected function definition.
         token_to_id: Mapping from vocab token string to ID.
         id_to_token: Mapping from token ID to raw vocabulary token string.
+        number_tokens_ids: Vocabulary token IDs valid during number
+            generation, precomputed once for the vocabulary.
         encode_cached: Cached encoder for fixed/repeating text.
         visualize: Whether to print each generated token to the terminal.
 
@@ -229,7 +322,7 @@ def generate_function_call(model: Small_LLM_Model, request: Prompt,
     input_ids = encode_custom(parameters_prompt, token_to_id)
     parameters_ids = _generate_parameters_ids(
         model, input_ids, function.parameters,
-        id_to_token, encode_cached, visualize)
+        id_to_token, number_tokens_ids, encode_cached, visualize)
     if visualize:
         print()
     parameters = json.loads(decode_custom(parameters_ids, id_to_token))

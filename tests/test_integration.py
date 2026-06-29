@@ -5,7 +5,7 @@ from src.loader import load_functions, load_prompts, load_model
 from src.selector import build_functions_tokens, select_function
 from src.generator import generate_function_call
 from src.schema import Prompt, FunctionDef
-from src.utils import load_vocab
+from src.utils import load_vocab, build_number_token_ids
 from src.encode import build_cached_encoder, encode_custom
 from src.decode import decode_custom
 
@@ -40,6 +40,12 @@ def encode_cached(vocab: Vocab) -> Callable[[str], List[int]]:
 
 
 @pytest.fixture(scope="session")
+def number_tokens_ids(vocab: Vocab) -> List[int]:
+    _, id_to_token = vocab
+    return build_number_token_ids(id_to_token)
+
+
+@pytest.fixture(scope="session")
 def functions_tokens(
         functions: List[FunctionDef],
         encode_cached: Callable[[str], List[int]]) -> Dict[str, List[int]]:
@@ -50,6 +56,7 @@ class TestNormalCases:
     def test_add_numbers(
             self, model: Small_LLM_Model, functions: List[FunctionDef],
             functions_tokens: Dict[str, List[int]], vocab: Vocab,
+            number_tokens_ids: List[int],
             encode_cached: Callable[[str], List[int]]) -> None:
         print()
         print("=== test_add_numbers ===")
@@ -59,7 +66,8 @@ class TestNormalCases:
             model, prompt, functions, functions_tokens,
             token_to_id, id_to_token)
         result = generate_function_call(
-            model, prompt, function, token_to_id, id_to_token, encode_cached)
+            model, prompt, function, token_to_id, id_to_token,
+            number_tokens_ids, encode_cached)
         print(f"prompt  : {prompt.prompt}")
         print("expected: fn_add_numbers({'a': 2, 'b': 3})")
         print(f"actual  : {result.name}({result.parameters})")
@@ -70,6 +78,7 @@ class TestNormalCases:
     def test_greet(
             self, model: Small_LLM_Model, functions: List[FunctionDef],
             functions_tokens: Dict[str, List[int]], vocab: Vocab,
+            number_tokens_ids: List[int],
             encode_cached: Callable[[str], List[int]]) -> None:
         print()
         print("=== test_greet ===")
@@ -79,7 +88,8 @@ class TestNormalCases:
             model, prompt, functions, functions_tokens,
             token_to_id, id_to_token)
         result = generate_function_call(
-            model, prompt, function, token_to_id, id_to_token, encode_cached)
+            model, prompt, function, token_to_id, id_to_token,
+            number_tokens_ids, encode_cached)
         print(f"prompt  : {prompt.prompt}")
         print("expected: fn_greet({'name': 'John'})")
         print(f"actual  : {result.name}({result.parameters})")
@@ -89,6 +99,7 @@ class TestNormalCases:
     def test_reverse_string(
             self, model: Small_LLM_Model, functions: List[FunctionDef],
             functions_tokens: Dict[str, List[int]], vocab: Vocab,
+            number_tokens_ids: List[int],
             encode_cached: Callable[[str], List[int]]) -> None:
         print()
         print("=== test_reverse_string ===")
@@ -98,7 +109,8 @@ class TestNormalCases:
             model, prompt, functions, functions_tokens,
             token_to_id, id_to_token)
         result = generate_function_call(
-            model, prompt, function, token_to_id, id_to_token, encode_cached)
+            model, prompt, function, token_to_id, id_to_token,
+            number_tokens_ids, encode_cached)
         print(f"prompt  : {prompt.prompt}")
         print("expected: fn_reverse_string({'s': 'hello'})")
         print(f"actual  : {result.name}({result.parameters})")
@@ -108,6 +120,7 @@ class TestNormalCases:
     def test_set_active(
             self, model: Small_LLM_Model, functions: List[FunctionDef],
             functions_tokens: Dict[str, List[int]], vocab: Vocab,
+            number_tokens_ids: List[int],
             encode_cached: Callable[[str], List[int]]) -> None:
         print()
         print("=== test_set_active ===")
@@ -117,7 +130,8 @@ class TestNormalCases:
             model, prompt, functions, functions_tokens,
             token_to_id, id_to_token)
         result = generate_function_call(
-            model, prompt, function, token_to_id, id_to_token, encode_cached)
+            model, prompt, function, token_to_id, id_to_token,
+            number_tokens_ids, encode_cached)
         print(f"prompt  : {prompt.prompt}")
         print("expected: fn_set_active({'is_active': True})")
         print(f"actual  : {result.name}({result.parameters})")
@@ -127,6 +141,7 @@ class TestNormalCases:
     def test_create_user(
             self, model: Small_LLM_Model, functions: List[FunctionDef],
             functions_tokens: Dict[str, List[int]], vocab: Vocab,
+            number_tokens_ids: List[int],
             encode_cached: Callable[[str], List[int]]) -> None:
         print()
         print("=== test_create_user ===")
@@ -136,7 +151,8 @@ class TestNormalCases:
             model, prompt, functions, functions_tokens,
             token_to_id, id_to_token)
         result = generate_function_call(
-            model, prompt, function, token_to_id, id_to_token, encode_cached)
+            model, prompt, function, token_to_id, id_to_token,
+            number_tokens_ids, encode_cached)
         print(f"prompt  : {prompt.prompt}")
         print("expected: fn_create_user("
               "{'user': {'name': 'Alice', 'age': 30}})")
@@ -148,6 +164,7 @@ class TestNormalCases:
     def test_tag_item(
             self, model: Small_LLM_Model, functions: List[FunctionDef],
             functions_tokens: Dict[str, List[int]], vocab: Vocab,
+            number_tokens_ids: List[int],
             encode_cached: Callable[[str], List[int]]) -> None:
         print()
         print("=== test_tag_item ===")
@@ -157,7 +174,8 @@ class TestNormalCases:
             model, prompt, functions, functions_tokens,
             token_to_id, id_to_token)
         result = generate_function_call(
-            model, prompt, function, token_to_id, id_to_token, encode_cached)
+            model, prompt, function, token_to_id, id_to_token,
+            number_tokens_ids, encode_cached)
         print(f"prompt  : {prompt.prompt}")
         print("expected: fn_tag_item({'tags': ['python', 'ai', 'llm']})")
         print(f"actual  : {result.name}({result.parameters})")

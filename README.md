@@ -58,7 +58,7 @@ default (e.g. `uv run python -m src --model Qwen/Qwen3-0.6B`):
 - `--input` — path to the prompts JSON
   (default `data/input/function_calling_tests.json`).
 - `--output` — path to the results JSON
-  (default `data/output/function_calls.json`).
+  (default `data/output/function_calling_results.json`).
 - `--model` — Hugging Face model identifier (default `Qwen/Qwen3-0.6B`).
 - `--visualize` — stream each generated token to the terminal in real time.
 
@@ -76,8 +76,8 @@ For each prompt, the program runs two constrained-decoding passes:
 2. **Argument generation** (`src/generator.py`) — once a function is
    selected, the model generates its arguments as JSON, one token at a time.
    The generator tracks the expected JSON structure (`{`, `}`, `[`, `]`,
-   `,`, key names) and each parameter's declared type (`number`, `string`,
-   `boolean`, `object`, `array`) to constrain every step.
+   `,`, key names) and each parameter's declared type to constrain every
+   step.
 
 ### Constrained decoding in practice
 
@@ -97,6 +97,27 @@ every generated token is guaranteed to keep the output valid. This produces
 100% valid JSON without any retry-or-repair step. Generation is fully
 deterministic (the highest-logit valid token is always chosen), so the same
 prompt and model always yield the same result.
+
+### Type-specific masking
+
+The masking strategy differs per JSON value type, but always follows the
+same principle — restrict the candidate pool *before* picking the
+highest-logit token, never after:
+
+- **`object` / `array`** — only the fixed structural tokens (`{`, `}`, `[`,
+  `]`, `,`, key names) are inserted directly; the model is never asked to
+  produce them.
+- **`string`** — the model generates freely until a token containing a
+  closing `"` is produced; any text preceding the quote within that same
+  token is still kept.
+- **`number`** — at each step, the candidate pool is restricted to
+  vocabulary tokens consisting only of digits, `.`, `-`, or a JSON
+  terminator (`,`, `}`, `]`), so the model cannot emit a non-numeric token.
+- **`boolean`** — the candidate pool is restricted to exactly two full
+  token sequences, `"true"` and `"false"`; at each step only sequences
+  still matching what has been generated so far remain eligible, and the
+  model picks between them by logit, the same mechanism used for function
+  name selection.
 
 ## Design Decisions
 
@@ -125,6 +146,12 @@ prompt and model always yield the same result.
   guarantees no candidate's token sequence is a prefix of another's, so the
   selection loop can always tell whether the model intends to stop at the
   current name or continue into a longer one (see Challenges Faced).
+- **Type-aware masking for numbers and booleans**: `number` arguments
+  restrict the candidate pool to digit/`.`/`-`/terminator tokens, and
+  `boolean` arguments choose between exactly two full candidates (`"true"`,
+  `"false"`). Both follow the same logit-restriction principle already used
+  for JSON structural tokens and function names, rather than relying on the
+  model to spontaneously produce a correctly-typed value.
 
 ## Performance Analysis
 
@@ -157,6 +184,14 @@ prompt and model always yield the same result.
   function name with a trailing newline, so no name's tokens are ever a
   prefix of another's; the model can then genuinely choose between
   "stop here" and "continue" at every shared step.
+- **Number and boolean values were initially unmasked**: an early version
+  generated `number` and `boolean` values by simply picking the
+  highest-logit token with no restriction, relying on the model to
+  spontaneously produce a valid value — exactly the approach the subject
+  warns against. This could silently produce a non-numeric token or a `1`
+  instead of `true`. Fixed by adding the same logit-restriction principle
+  used elsewhere: a precomputed digit/`.`/`-` mask for numbers, and a
+  two-candidate (`"true"`/`"false"`) restriction for booleans.
 - **Byte-level markers beyond spaces**: the subject example only documents
   the space marker (`Ġ`), but the program's internally built prompts contain
   newlines, so the custom tokenizer also had to handle the newline marker
@@ -204,7 +239,8 @@ Selecting function: fn_add_numbers
 Generating arguments: {"a": 2, "b": 3}
 ```
 
-Resulting entry written to the output JSON:
+Resulting entry written to the output JSON
+(`data/output/function_calling_results.json`):
 
 ```json
 {
@@ -223,7 +259,8 @@ Resulting entry written to the output JSON:
 | Comprehensive test suite | Implemented |
 | Visualization of the generation process (`--visualize`) | Implemented |
 | Advanced error recovery mechanisms | Implemented |
-| Performance optimization | Implemented |
+| Performance optimization — caching | Implemented |
+| Performance optimization — batching | Not implemented (see below) |
 | Tokenizer reimplementation (`encode_custom` / `decode_custom`) | Implemented |
 | Public `encode` / `decode` implementation | Implemented |
 | Integration of custom tokenizer with constrained decoding | Implemented |
@@ -259,14 +296,17 @@ AI assistance (Claude) was used as a design-and-review partner throughout
 the project. Specifically:
 
 - **Design discussion**: weighing where to place the token cache, how to
-  structure the custom tokenizer (greedy longest-match vs. full BPE), and
-  how to split responsibilities across files.
+  structure the custom tokenizer (greedy longest-match vs. full BPE), how
+  to split responsibilities across files, and how to mask candidate tokens
+  per JSON value type (string/number/boolean/object/array).
 - **Debugging**: diagnosing the function-name `IndexError`, the
   prefix-collision bug between candidate function names, the missing
-  newline marker in the custom tokenizer, and the token-printing
-  misalignment in the visualization.
+  newline marker in the custom tokenizer, the unmasked number/boolean
+  generation gap, and the token-printing misalignment in the
+  visualization.
 - **Code review**: checking type hints, docstrings, and `flake8`/`mypy`
-  compliance, and reviewing the wording of this README.
+  compliance, cross-checking the implementation against the subject's
+  requirements, and reviewing the wording of this README.
 
 All code was reviewed, understood, and validated by the author before being
 committed.

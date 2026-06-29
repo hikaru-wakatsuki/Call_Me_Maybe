@@ -2,7 +2,7 @@ import argparse
 from .loader import load_functions, load_prompts, load_model
 from .selector import build_functions_tokens, select_function
 from .generator import generate_function_call
-from .utils import write_output, load_vocab
+from .utils import write_output, load_vocab, build_number_token_ids
 from .encode import build_cached_encoder
 
 
@@ -18,7 +18,8 @@ def _parse_args() -> argparse.Namespace:
         default='data/input/functions_definition.json')
     parse.add_argument(
         '--input', default='data/input/function_calling_tests.json')
-    parse.add_argument('--output', default='data/output/function_calls.json')
+    parse.add_argument(
+        '--output', default='data/output/function_calling_results.json')
     parse.add_argument('--model', default='Qwen/Qwen3-0.6B')
     parse.add_argument('--visualize', action='store_true')
     return parse.parse_args()
@@ -33,6 +34,7 @@ def main() -> None:
     args = _parse_args()
     model = load_model(args.model)
     token_to_id, id_to_token = load_vocab(model)
+    number_token_ids = build_number_token_ids(id_to_token)
     functions = load_functions(args.functions_definition)
     prompts = load_prompts(args.input)
     encode_cached = build_cached_encoder(token_to_id)
@@ -47,7 +49,7 @@ def main() -> None:
             token_to_id, id_to_token, args.visualize)
         result = generate_function_call(
             model, prompt, function, token_to_id, id_to_token,
-            encode_cached, args.visualize)
+            number_token_ids, encode_cached, args.visualize)
         results.append(result)
 
     write_output(args.output, results)

@@ -52,6 +52,21 @@ def load_vocab(
     return token_to_id, id_to_token
 
 
+def build_number_token_ids(id_to_token: Dict[int, str]) -> List[int]:
+    """Precompute vocabulary tokens valid during number generation.
+
+    Args:
+        id_to_token: Mapping from token ID to raw vocabulary token string.
+
+    Returns:
+        List of token IDs whose text consists only of digits, '.', or
+        '-'.
+    """
+    safe_chars = "0123456789" + ".-" + "]},"
+    return ([token_id for token_id, text in id_to_token.items()
+             if text and all(ch in safe_chars for ch in text)])
+
+
 def write_output(file_path: str, results: List[FunctionCall]) -> None:
     """Write function call results to a JSON file.
 
