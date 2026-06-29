@@ -19,18 +19,21 @@ def _build_parameters_prompt(request: Prompt, function: FunctionDef) -> str:
     Returns:
         A prompt string for argument generation.
     """
-    prompt = f"User request: {request.prompt}"
     params = ", ".join(
         f"{k}: {v.type}" for k, v in function.parameters.items())
-    prompt += f"\nFunction: {function.name}({params}): {function.description}"
-    prompt += "\nGenerate the arguments as JSON for the function call."
-    prompt += "\nArguments:"
-    return prompt
+    return (
+        "Function: fn_example(value: string): Example function.\n"
+        "User request: Set value to hello\n"
+        'Arguments: {"value": "hello"}\n\n'
+        f"Function: {function.name}({params}): {function.description}\n"
+        f"User request: {request.prompt}\n"
+        "Arguments:")
 
 
 def _generate_primitive_ids(
         model: Small_LLM_Model, input_ids: List[int],
         id_to_token: Dict[int, str],
+        encode_cached: Callable[[str], List[int]],
         visualize: bool = False) -> List[int]:
     """Generate token IDs for a primitive value (number, boolean, etc.).
 
@@ -38,6 +41,7 @@ def _generate_primitive_ids(
         model: The LLM model instance.
         input_ids: The input token IDs including the prompt.
         id_to_token: Mapping from token ID to raw vocabulary token string.
+        encode_cached: Cached encoder for fixed/repeating text.
         visualize: Whether to print each generated token to the terminal.
 
     Returns:
@@ -48,7 +52,13 @@ def _generate_primitive_ids(
         logits = model.get_logits_from_input_ids(input_ids + generated)
         next_id = logits.index(max(logits))
         token = decode_custom([next_id], id_to_token)
-        if ',' in token or '}' in token or ']' in token:
+        stop_positions = [token.index(c) for c in (',', '}', ']')
+                          if c in token]
+        if stop_positions:
+            before = token[:min(stop_positions)]
+            if before:
+                append_tokens(
+                    generated, encode_cached(before), id_to_token, visualize)
             break
         append_tokens(generated, [next_id], id_to_token, visualize)
     return generated
@@ -78,6 +88,10 @@ def _generate_string_ids(
         next_id = logits.index(max(logits))
         token = decode_custom([next_id], id_to_token)
         if '"' in token:
+            before, _, _ = token.partition('"')
+            if before:
+                append_tokens(
+                    generated, encode_cached(before), id_to_token, visualize)
             break
         append_tokens(generated, [next_id], id_to_token, visualize)
     append_tokens(generated, encode_cached('"'), id_to_token, visualize)
@@ -151,7 +165,7 @@ def _generate_value_ids(
             model, input_ids, id_to_token, encode_cached, visualize)
     else:
         return _generate_primitive_ids(
-            model, input_ids, id_to_token, visualize)
+            model, input_ids, id_to_token, encode_cached, visualize)
 
 
 def _generate_parameters_ids(model: Small_LLM_Model, input_ids: List[int],

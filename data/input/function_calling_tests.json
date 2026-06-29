@@ -6,10 +6,10 @@
         "prompt": "What is the sum of 265 and 345?"
     },
     {
-        "prompt": "Greet shrek"
+        "prompt": "Greet Tom"
     },
     {
-        "prompt": "Greet john"
+        "prompt": "Greet John"
     },
     {
         "prompt": "Reverse the string 'hello'"
