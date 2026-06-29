@@ -37,7 +37,6 @@ def main() -> None:
     prompts = load_prompts(args.input)
     encode_cached = build_cached_encoder(token_to_id)
     functions_tokens = build_functions_tokens(functions, encode_cached)
-    print(functions_tokens)
     results = []
     for prompt in prompts:
         if args.visualize:
