@@ -262,8 +262,7 @@ Resulting entry written to the output JSON
 | Comprehensive test suite | Implemented |
 | Visualization of the generation process (`--visualize`) | Implemented |
 | Advanced error recovery mechanisms | Implemented |
-| Performance optimization — caching | Implemented |
-| Performance optimization — batching | Not implemented (see below) |
+| Performance optimization | Implemented |
 | Tokenizer reimplementation (`encode_custom` / `decode_custom`) | Implemented |
 | Public `encode` / `decode` implementation | Implemented |
 | Integration of custom tokenizer with constrained decoding | Implemented |
