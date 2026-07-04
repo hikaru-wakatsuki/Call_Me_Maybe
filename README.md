@@ -45,8 +45,11 @@ make lint-strict
 # Run the test suite
 make test
 
-# Remove caches and bytecode
+# Remove Python caches and bytecode
 make clean
+
+# Remove the virtual environment and generated output (full cleanup)
+make fclean
 ```
 
 `make run` and `make run-visualize` both run `python -m src`, which also
